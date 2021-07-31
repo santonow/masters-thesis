@@ -71,7 +71,7 @@ def create_metadata_table(output_file: str, experiment_type: str) -> None:
             writer.writerow(row)
 
 
-def read_sample_to_station_map() -> dict[str, str]:
+def read_study_sample_to_tara_sample() -> dict[str, str]:
     result = dict()
     df = pd.read_excel(
         pkg_resources.resource_filename(__name__, 'resources/metadata/41467_2017_2342_MOESM8_ESM.xlsx'),
