@@ -25,10 +25,10 @@ CHOSEN_COLS = [
 
 CHOSEN_SAMPLES = {
     'amplicon': pkg_resources.resource_filename(
-        __name__, 'resources/metadata/amplicon_chosen_samples.txt'
+        __name__, 'resources/amplicon_chosen_samples.txt'
     ),
     'metatrans': pkg_resources.resource_filename(
-        __name__, 'resources/metadata/metatrans_chosen_samples.txt'
+        __name__, 'resources/metatrans_chosen_samples.txt'
     )
 }
 
