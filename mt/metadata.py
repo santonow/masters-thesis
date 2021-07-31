@@ -69,3 +69,16 @@ def create_metadata_table(output_file: str, experiment_type: str) -> None:
             for key in keys:
                 row.append(record[key])
             writer.writerow(row)
+
+
+def read_sample_to_station_map() -> dict[str, str]:
+    result = dict()
+    df = pd.read_excel(
+        pkg_resources.resource_filename(__name__, 'resources/metadata/41467_2017_2342_MOESM8_ESM.xlsx'),
+        engine='openpyxl', header=1
+    )
+    for record in df.to_dict(orient='records'):
+        result[record['Sample Code']] = record['Tara Oceans ID']
+    return result
+
+
