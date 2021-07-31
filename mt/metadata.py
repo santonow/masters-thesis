@@ -44,7 +44,7 @@ def create_metadata_table(output_file: str, experiment_type: str) -> None:
         raise ValueError('experiment_type has to be one of [amplicon, metatrans]!')
 
     metadata = pd.read_excel(
-        pkg_resources.resource_filename(__name__, 'resources/41467_2017_2342_MOESM7_ESM.xlsx'),
+        pkg_resources.resource_filename(__name__, 'resources/metadata/41467_2017_2342_MOESM7_ESM.xlsx'),
         engine='openpyxl', header=1
     )
 
