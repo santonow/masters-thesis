@@ -3,24 +3,37 @@ import os
 configfile: "config.yaml"
 
 def make_outputs(method, ext, wrapper=None, only_files=False):
-    inputs = dict()
+    out = dict()
     for k in config[f"{method}_configs"]:
         if k.startswith("config"):
-            inputs[k] = os.path.join(
+            out[k] = os.path.join(
                 config[f"{method}_configs"]["output_dir"],
-                k + f".{ext}" if ext else ""
+                k + f".{ext}" if ext else k
             )
             if wrapper is not None:
-                inputs[k] = wrapper(inputs[k])
+                out[k] = wrapper(out[k])
     if only_files:
-        return list(inputs.values())
-    return inputs
+        return list(out.values())
+    print(out)
+    return out
 
+
+def prepare_output_fname(base_fname, method):
+    dirname, filename = os.path.split(base_fname)
+    return os.path.join(dirname, f"{method}_" + filename)
+
+rule prepare_for_fastspar:
+    input:
+        config["input"]["filename"]
+    output:
+        prepare_output_fname(config["input"]["filename"], "fastspar")
+    script:
+        "mt/to_biom_tsv.py"
 
 rule fastspar_infer:
     priority: 0
     input:
-        config["input"]["filename"]
+        prepare_output_fname(config["input"]["filename"], "fastspar")
     output:
         **make_outputs("fastspar", "", directory)
     log:

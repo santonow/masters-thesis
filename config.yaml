@@ -1,5 +1,7 @@
 input:
   filename: "data/fake_data.tsv"
+  format: "tsv"
+  sample_rows: false
 
 methods:
   - flashweave
@@ -22,11 +24,11 @@ flashweave_configs:
     transposed:    true
 
 spieceasi_configs:
-  output_dir: "data/spieceasi_results"
+  output_dir: "data/spieceasi_results/"
   config1_glasso:
     method: "glasso"
 
 phyloseq_configs:
-  output_dir: "data/phyloseq_results"
+  output_dir: "data/phyloseq_results/"
   config1_jaccard:
     distance: "jaccard"

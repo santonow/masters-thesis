@@ -1,15 +1,16 @@
 import os
 import subprocess
 
-os.makedirs(snakemake.config['fastspar_configs']['output_dir'], exist_ok=True)
+os.makedirs(os.path.abspath(snakemake.config['fastspar_configs']['output_dir']), exist_ok=True)
 for config_name, config in snakemake.config['fastspar_configs'].items():
 
     if config_name.startswith('config'):
         output_path = os.path.abspath(snakemake.output[config_name])
+        os.makedirs(output_path, exist_ok=True)
         command = [
             'fastspar',
             '--otu_table',
-            snakemake.input[0],
+            os.path.abspath(snakemake.input[0]),
             '--correlation',
             os.path.join(output_path, 'correlations.tsv'),
             '--covariance',
@@ -25,7 +26,6 @@ for config_name, config in snakemake.config['fastspar_configs'].items():
                         str(config[option])
                     ]
                 )
-
         completed_process = subprocess.run(command, capture_output=True)
         with open(snakemake.log[0], 'w') as handle:
             handle.write(f'STDOUT ({config_name})\n')
