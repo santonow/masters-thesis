@@ -2,8 +2,9 @@ log <- file(snakemake@log[[1]], open="wt")
 sink(log, append = TRUE)
 sink(log, append = TRUE, type = "message")
 
-library(SpiecEasi)
+library(igraph)
 library(phyloseq)
+
 
 otu.table <- otu_table(
   read.table(
@@ -12,15 +13,13 @@ otu.table <- otu_table(
   taxa_are_rows = TRUE
 )
 
-configs <- snakemake@config[["spieceasi_configs"]]
+configs <- snakemake@config[["phyloseq_configs"]]
 for (config.name in names(configs)) {
   if (startsWith(config.name, "config")) {
     config <- configs[[config.name]]
-    config[["data"]] <- otu.table
-    sf <- do.call(spiec.easi, config)
-    net <- getOptNet(sf)
-    df <- as.data.frame(as.matrix(net))
-    write.table(df, file = snakemake@output[[config.name]], sep = "\t")
+    config[["physeq"]] <- otu.table
+    net <- do.call(make_network, config)
+    write.table(as_data_frame(net), file=snakemake@output[[config.name]], sep = "\t", )
   }
 }
 

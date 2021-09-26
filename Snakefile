@@ -1,9 +1,28 @@
+import os
+
+configfile: "config.yaml"
+
+def make_outputs(method, ext, wrapper=None, only_files=False):
+    inputs = dict()
+    for k in config[f"{method}_configs"]:
+        if k.startswith("config"):
+            inputs[k] = os.path.join(
+                config[f"{method}_configs"]["output_dir"],
+                k + f".{ext}" if ext else ""
+            )
+            if wrapper is not None:
+                inputs[k] = wrapper(inputs[k])
+    if only_files:
+        return list(inputs.values())
+    return inputs
+
+
 rule fastspar_infer:
     priority: 0
     input:
-        "data/fake_data.tsv"
+        config["input"]["filename"]
     output:
-        directory("data/fastspar_results")
+        **make_outputs("fastspar", "", directory)
     log:
         "logs/fastspar.log"
     benchmark:
@@ -11,17 +30,14 @@ rule fastspar_infer:
     conda:
         "envs/fastspar.yaml"
     threads: 2
-    shell:
-        """mkdir {output}
-        fastspar --otu_table {input} --correlation {output}/correlations.tsv \
-        --covariance {output}/covariances.tsv --threads {threads} >> {log}
-        """
+    script:
+        "mt/call_fastspar.py"
 
 rule SpiecEasi_infer:
     input:
-        "data/fake_data.tsv"
+        config["input"]["filename"]
     output:
-        "data/spieceasi_results/learned_network.tsv"
+        **make_outputs("spieceasi", "tsv")
     log:
         "logs/spieceasi.log"
     benchmark:
@@ -33,9 +49,9 @@ rule SpiecEasi_infer:
 
 rule flashweave_infer:
     input:
-        "data/fake_data.tsv"
+        config["input"]["filename"]
     output:
-        "data/julia_results/learned_network.edgelist"
+        **make_outputs("flashweave", "edgelist")
     threads: 2
     log:
         "logs/flashweave.log"
@@ -46,9 +62,24 @@ rule flashweave_infer:
     script:
         "mt/call_flashweave.jl"
 
+rule phyloseq_infer:
+    input:
+        config["input"]["filename"]
+    output:
+        **make_outputs("phyloseq", "tsv")
+    log:
+        "logs/phyloseq.log"
+    benchmark:
+        "benchmarks/phyloseq.benchmark"
+    conda:
+        "envs/phyloseq.yaml"
+    script:
+        "mt/call_phyloseq.R"
+
 rule all:
     input:
-        "data/fastspar_results",
-        "data/spieceasi_results/learned_network.tsv",
-        "data/julia_results/learned_network.edgelist"
+        *make_outputs("fastspar", "", directory, only_files=True),
+        *make_outputs("spieceasi", "tsv", only_files=True),
+        *make_outputs("flashweave", "edgelist", only_files=True),
+        *make_outputs("phyloseq", "tsv", only_files=True)
 

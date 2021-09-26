@@ -1,0 +1,32 @@
+input:
+  filename: "data/fake_data.tsv"
+
+methods:
+  - flashweave
+  - spieceasi
+  - phyloseq
+  - fastspar
+
+fastspar_configs:
+  output_dir: "data/fastspar_results/"
+  config1:
+    iterations: 50
+    exclude_iterations: 10
+    threshold: 0.1
+
+flashweave_configs:
+  output_dir: "data/flashweave_results/"
+  config1:
+    sensitive:     true
+    heterogeneous: false
+    transposed:    true
+
+spieceasi_configs:
+  output_dir: "data/spieceasi_results"
+  config1_glasso:
+    method: "glasso"
+
+phyloseq_configs:
+  output_dir: "data/phyloseq_results"
+  config1_jaccard:
+    distance: "jaccard"
