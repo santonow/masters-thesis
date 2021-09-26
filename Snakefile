@@ -19,8 +19,8 @@ def make_outputs(method, ext, wrapper=None, only_files=False):
 
 
 def prepare_output_fname(base_fname, method):
-    dirname, filename = os.path.split(base_fname)
-    return os.path.join(dirname, f"{method}_" + filename)
+    _, filename = os.path.split(base_fname)
+    return os.path.join("data", f"{method}_" + filename)
 
 rule prepare_for_fastspar:
     input:
