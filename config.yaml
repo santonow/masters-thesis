@@ -4,6 +4,7 @@ input:
   sample_rows: true
   metadata: true
   metadata_fname: "data/fake_data_meta.tsv"
+  max_obs: 50
 
 methods:
   - flashweave

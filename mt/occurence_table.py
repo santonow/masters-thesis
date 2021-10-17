@@ -6,6 +6,7 @@ from functools import partial
 import biom
 from biom.util import biom_open
 import h5py
+import numpy as np
 
 
 class OTUTable:
@@ -44,12 +45,29 @@ class OTUTable:
                 metadata[line[0]] = dict(zip(header[1:], line[1:]))
         return metadata
 
-    def to_csv(self, filepath, delimiter=',', gzipped=False, metadata_suffix='meta', transpose=False):
+    def to_csv(
+        self, filepath, delimiter=',', gzipped=False,
+        metadata_suffix='meta', transpose=False,
+        max_obs=None
+    ):
         with self.create_writer(gzipped)(filepath) as writer:
             if transpose:
                 tbl = self.table.transpose()
             else:
                 tbl = self.table
+            if max_obs is not None:
+                chosen_ids = sorted(
+                    tbl.ids(axis='observation'),
+                    reverse=True,
+                    key=lambda x: np.std(
+                        tbl.data(x, axis='observation') - np.mean(tbl.data(x, axis='observation'))
+                    )
+                )[:max_obs]
+
+                tbl = tbl.filter(
+                    ids_to_keep=chosen_ids,
+                    axis='observation'
+                )
             for line in tbl.delimited_self(delimiter).split('\n')[1:]:
                 writer.write(line + '\n')
         if self.table._sample_metadata is not None:
