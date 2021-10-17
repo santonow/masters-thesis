@@ -1,7 +1,9 @@
 input:
   filename: "data/fake_data.tsv"
   format: "tsv"
-  sample_rows: false
+  sample_rows: true
+  metadata: true
+  metadata_fname: "data/fake_data_meta.tsv"
 
 methods:
   - flashweave
@@ -14,21 +16,25 @@ fastspar_configs:
   config1:
     iterations: 50
     exclude_iterations: 10
-    threshold: 0.1
+    threshold: 0.2
+    network_base: "correlations"
 
 flashweave_configs:
   output_dir: "data/flashweave_results/"
   config1:
     sensitive:     true
     heterogeneous: false
-    transposed:    true
 
 spieceasi_configs:
   output_dir: "data/spieceasi_results/"
   config1_glasso:
     method: "glasso"
+    pulsar.select: true
+    sel.criterion: "bstars"
+    verbose: true
 
 phyloseq_configs:
   output_dir: "data/phyloseq_results/"
   config1_jaccard:
-    distance: "jaccard"
+    distance: "binomial"
+    max.dist: 0.9

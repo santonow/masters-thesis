@@ -4,6 +4,7 @@ import os
 from functools import partial
 
 import biom
+from biom.util import biom_open
 import h5py
 
 
@@ -36,6 +37,9 @@ class OTUTable:
         with open(fname) as handle:
             reader = csv.reader(handle, delimiter='\t')
             header = next(reader)
+            header = [
+                val.replace('/', ' per ') for val in header
+            ]
             for line in reader:
                 metadata[line[0]] = dict(zip(header[1:], line[1:]))
         return metadata
@@ -55,13 +59,16 @@ class OTUTable:
             if extensions.endswith('.gz'):
                 extensions = extensions[:-len('.gz')]
             metadata_filepath = os.path.join(pref, metadata_name + '.' + extensions)
-            self.table.metadata_to_dataframe(axis='sample').to_csv(metadata_filepath, sep=delimiter)
+            self.table.metadata_to_dataframe(axis='sample').to_csv(
+                metadata_filepath, sep=delimiter, index=False)
 
     def to_tsv(self, *args, **kwargs):
         return partial(self.to_csv, delimiter='\t')(*args, **kwargs)
 
     @classmethod
-    def from_tsv(cls, fpath, sample_metadata_fpath=None, obs_metadata_fpath=None, gzipped=False, sample_rows=True):
+    def from_tsv(
+        cls, fpath, sample_metadata_fpath=None, obs_metadata_fpath=None, gzipped=False, sample_rows=True
+    ):
         dummy_fun = lambda x: x
         with cls.create_opener(gzipped)(fpath) as lines:
             table = biom.Table.from_tsv(lines, None, None, dummy_fun)  # noqa
@@ -79,10 +86,9 @@ class OTUTable:
         with h5py.File(filepath, 'w') as file:
             self.table.to_hdf5(file, generated_by='unknown')
 
-    # TODO: figure this out
     @classmethod
     def from_hdf5(cls, filepath):
-        with h5py.File(filepath, 'r') as file:
+        with biom_open(filepath) as file:
             return cls(biom.Table.from_hdf5(file))
 
 
@@ -91,12 +97,8 @@ if __name__ == '__main__':
         '/Users/ant/masters-thesis/amplicon_occurences.tsv',
         '/Users/ant/masters-thesis/amplicon_station_metadata.tsv'
     )
-    print(table.table.head())
-    print(table.table.metadata(id='TARA_A100000393', axis='sample'))
-    table.to_tsv('/Users/ant/masters-thesis/amplicon_station_test.tsv')
-    table.to_csv('/Users/ant/masters-thesis/amplicon_station_test.csv', delimiter=';')
-    table.to_tsv('/Users/ant/masters-thesis/amplicon_station_test.tsv.gz')
+    print(table._sample_metadata)
     table.to_hdf5('/Users/ant/masters-thesis/amplicon_station_test.biom')
     table = OTUTable.from_hdf5('/Users/ant/masters-thesis/amplicon_station_test.biom')
     print(table.table.head())
-    print(table.table.metadata(id='TARA_A100000393', axis='sample'))
+    print(table._sample_metadata)

@@ -22,7 +22,8 @@ open(snakemake.log[1], "a") do out
                 if startswith(configname, "config")
                     config_d = (Symbol(key) => val for (key, val) in config)
                     data_path = snakemake.input[1]
-                    netw_results = learn_network(data_path; config_d...)
+                    metadata_path = snakemake.input[2]
+                    netw_results = learn_network(data_path, metadata_path; config_d...)
                     save_network(snakemake.output[configname], netw_results)
                 end
             end

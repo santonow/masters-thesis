@@ -7,7 +7,7 @@ library(phyloseq)
 
 otu.table <- otu_table(
   read.table(
-    snakemake@input[[1]], header = TRUE, sep = "\t", row.names = 1
+    snakemake@input[["base"]], header = TRUE, sep = "\t", row.names = 1
   ),
   taxa_are_rows = TRUE
 )
@@ -17,6 +17,7 @@ for (config.name in names(configs)) {
   if (startsWith(config.name, "config")) {
     config <- configs[[config.name]]
     config[["data"]] <- otu.table
+    config[["pulsar.params"]] <- list(ncores=snakemake@threads)
     sf <- do.call(spiec.easi, config)
     net <- getOptNet(sf)
     df <- as.data.frame(as.matrix(net))

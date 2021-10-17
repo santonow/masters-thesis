@@ -1,6 +1,16 @@
 import os
 
+from mt.utils import make_graph_name
+
 configfile: "config.yaml"
+
+
+METHODS_EXTENSIONS = [
+    ("fastspar", ""),
+    ("spieceasi", "tsv"),
+    ("flashweave", "edgelist"),
+    ("phyloseq", "tsv")
+]
 
 def make_outputs(method, ext, wrapper=None, only_files=False):
     out = dict()
@@ -14,26 +24,46 @@ def make_outputs(method, ext, wrapper=None, only_files=False):
                 out[k] = wrapper(out[k])
     if only_files:
         return list(out.values())
-    print(out)
     return out
 
 
-def prepare_output_fname(base_fname, method):
-    _, filename = os.path.split(base_fname)
-    return os.path.join("data", f"{method}_" + filename)
+def pack_input():
+    inp = {
+        "base": config["input"]["filename"]
+    }
+    if "metadata_fname" in config["input"]:
+        inp["meta"] = config["input"]["metadata_fname"]
+    return inp
 
-rule prepare_for_fastspar:
+def prepare_filenames(base_fname, prefix="sanitized_"):
+    _, filename = os.path.split(base_fname)
+    name, extensions = filename.split('.', 1)
+    metadata_name = name + "_meta"
+    metadata_filepath = os.path.join("data", prefix + metadata_name + '.' + extensions)
+    return {
+        "base": os.path.join("data", prefix + filename),
+        "meta": metadata_filepath
+    }
+
+def prepare_filename_for_flashweave(base_fname, prefix="sanitized_"):
+    names = prepare_filenames(base_fname, prefix)
+    filename = os.path.splitext(names["base"])[0]
+    return filename + '.biom'
+
+rule sanitize_input:
     input:
-        config["input"]["filename"]
+        **pack_input()
     output:
-        prepare_output_fname(config["input"]["filename"], "fastspar")
+        **prepare_filenames(config["input"]["filename"])
+    conda:
+        "envs/file_manipulation.yaml"
     script:
         "mt/to_biom_tsv.py"
 
 rule fastspar_infer:
     priority: 0
     input:
-        prepare_output_fname(config["input"]["filename"], "fastspar")
+        **prepare_filenames(config["input"]["filename"])
     output:
         **make_outputs("fastspar", "", directory)
     log:
@@ -48,9 +78,10 @@ rule fastspar_infer:
 
 rule SpiecEasi_infer:
     input:
-        config["input"]["filename"]
+        **prepare_filenames(config["input"]["filename"])
     output:
         **make_outputs("spieceasi", "tsv")
+    threads: 2
     log:
         "logs/spieceasi.log"
     benchmark:
@@ -60,9 +91,20 @@ rule SpiecEasi_infer:
     script:
         "mt/call_SpiecEasi.R"
 
+rule make_biom_for_flashweave:
+    input:
+        **prepare_filenames(config["input"]["filename"])
+    output:
+        prepare_filename_for_flashweave(config["input"]["filename"])
+    conda:
+        "envs/file_manipulation.yaml"
+    script:
+        "mt/make_biom.py"
+
 rule flashweave_infer:
     input:
-        config["input"]["filename"]
+        prepare_filename_for_flashweave(config["input"]["filename"]),
+        prepare_filenames(config["input"]["filename"])["meta"]
     output:
         **make_outputs("flashweave", "edgelist")
     threads: 2
@@ -77,7 +119,7 @@ rule flashweave_infer:
 
 rule phyloseq_infer:
     input:
-        config["input"]["filename"]
+        **prepare_filenames(config["input"]["filename"])
     output:
         **make_outputs("phyloseq", "tsv")
     log:
@@ -89,10 +131,25 @@ rule phyloseq_infer:
     script:
         "mt/call_phyloseq.R"
 
+
+def prepare_network_inputs(wrapper=lambda x: x):
+    d = prepare_filenames(config["input"]["filename"])
+    d["networks"] = []
+    for method, extension in METHODS_EXTENSIONS:
+        d["networks"].extend(make_outputs(method, extension, wrapper, only_files=True))
+    return d
+
 rule all:
     input:
-        *make_outputs("fastspar", "", directory, only_files=True),
-        *make_outputs("spieceasi", "tsv", only_files=True),
-        *make_outputs("flashweave", "edgelist", only_files=True),
-        *make_outputs("phyloseq", "tsv", only_files=True)
+        **prepare_network_inputs()
+    output:
+        *prepare_network_inputs(make_graph_name)["networks"]
+    log:
+        "logs/standarize_networks.log"
+    benchmark:
+        "benchmarks/standarize_networks.benchmark"
+    script:
+        "mt/standarize_networks.py"
+
+
 

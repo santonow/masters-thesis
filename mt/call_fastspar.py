@@ -10,7 +10,7 @@ for config_name, config in snakemake.config['fastspar_configs'].items():
         command = [
             'fastspar',
             '--otu_table',
-            os.path.abspath(snakemake.input[0]),
+            os.path.abspath(snakemake.input['base']),
             '--correlation',
             os.path.join(output_path, 'correlations.tsv'),
             '--covariance',

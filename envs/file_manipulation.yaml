@@ -1,0 +1,7 @@
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - biom-format=2.1.10
+  - h5py=3.4.0
+  - networkx=2.6.2

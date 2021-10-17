@@ -8,7 +8,7 @@ library(phyloseq)
 
 otu.table <- otu_table(
   read.table(
-    snakemake@input[[1]], header = TRUE, sep = "\t", row.names = 1
+    snakemake@input[["base"]], header = TRUE, sep = "\t", row.names = 1
   ),
   taxa_are_rows = TRUE
 )
