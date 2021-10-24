@@ -16,7 +16,7 @@ for (config.name in names(configs)) {
   if (startsWith(config.name, "config")) {
     config <- configs[[config.name]]
     config[["physeq"]] <- otu.table
-    net <- do.call(make_network, config)
+    net <- do.call(make_network, config, type="taxa")
     write.table(as_data_frame(net), file=snakemake@output[[config.name]], sep = "\t", )
   }
 }
