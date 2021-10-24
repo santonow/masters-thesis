@@ -62,7 +62,7 @@ class OTUTable:
                     key=lambda x: np.std(
                         tbl.data(x, axis='observation') - np.mean(tbl.data(x, axis='observation'))
                     )
-                )[:max_obs]
+                )[:max_obs + 1]
 
                 tbl = tbl.filter(
                     ids_to_keep=chosen_ids,

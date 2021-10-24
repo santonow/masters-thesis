@@ -10,7 +10,7 @@ table = OTUTable.from_tsv(snakemake.input["base"], snakemake.input["meta"])
 
 
 def parse_edgelist(fname):
-    return nx.read_edgelist(fname)
+    return nx.read_edgelist(fname, data=(('weight', float),), delimiter='\t')
 
 
 def read_tsv(fname):
@@ -47,7 +47,7 @@ def read_fastspar(fname):
         for left, *row in reader:
             for right, value in zip(row_names, row):
                 if float(value) > config['threshold'] and left != right:
-                    graph.add_edge(left, right)
+                    graph.add_edge(left, right, weight=float(value))
     return graph
 
 
