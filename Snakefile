@@ -1,6 +1,6 @@
 import os
 
-from mt.utils import make_graph_name
+from utils.utils import make_graph_name
 
 configfile: "config.yaml"
 
@@ -45,10 +45,10 @@ def prepare_filenames(base_fname, prefix="sanitized_"):
         "meta": metadata_filepath
     }
 
-def prepare_filename_for_flashweave(base_fname, prefix="sanitized_"):
+def prepare_biom_filename(base_fname, prefix="sanitized_"):
     names = prepare_filenames(base_fname, prefix)
     filename = os.path.splitext(names["base"])[0]
-    return filename + '.biom'
+    return filename + ".biom"
 
 rule sanitize_input:
     input:
@@ -58,7 +58,7 @@ rule sanitize_input:
     conda:
         "envs/file_manipulation.yaml"
     script:
-        "mt/to_biom_tsv.py"
+        "utils/to_biom_tsv.py"
 
 rule fastspar_infer:
     priority: 0
@@ -74,7 +74,7 @@ rule fastspar_infer:
         "envs/fastspar.yaml"
     threads: 2
     script:
-        "mt/call_fastspar.py"
+        "utils/call_fastspar.py"
 
 rule SpiecEasi_infer:
     input:
@@ -89,21 +89,21 @@ rule SpiecEasi_infer:
     conda:
         "envs/spieceasi.yaml"
     script:
-        "mt/call_SpiecEasi.R"
+        "utils/call_SpiecEasi.R"
 
-rule make_biom_for_flashweave:
+rule make_biom:
     input:
         **prepare_filenames(config["input"]["filename"])
     output:
-        prepare_filename_for_flashweave(config["input"]["filename"])
+        prepare_biom_filename(config["input"]["filename"])
     conda:
         "envs/file_manipulation.yaml"
     script:
-        "mt/make_biom.py"
+        "utils/make_biom.py"
 
 rule flashweave_infer:
     input:
-        prepare_filename_for_flashweave(config["input"]["filename"]),
+        prepare_biom_filename(config["input"]["filename"]),
         prepare_filenames(config["input"]["filename"])["meta"]
     output:
         **make_outputs("flashweave", "edgelist")
@@ -115,7 +115,7 @@ rule flashweave_infer:
     conda:
         "envs/flashweave.yaml"
     script:
-        "mt/call_flashweave.jl"
+        "utils/call_flashweave.jl"
 
 rule phyloseq_infer:
     input:
@@ -129,7 +129,7 @@ rule phyloseq_infer:
     conda:
         "envs/phyloseq.yaml"
     script:
-        "mt/call_phyloseq.R"
+        "utils/call_phyloseq.R"
 
 
 def prepare_network_inputs(wrapper=lambda x: x):
@@ -139,7 +139,7 @@ def prepare_network_inputs(wrapper=lambda x: x):
         d["networks"].extend(make_outputs(method, extension, wrapper, only_files=True))
     return d
 
-rule all:
+rule standarize_networks:
     input:
         **prepare_network_inputs()
     output:
@@ -149,7 +149,7 @@ rule all:
     benchmark:
         "benchmarks/standarize_networks.benchmark"
     script:
-        "mt/standarize_networks.py"
+        "utils/standarize_networks.py"
 
 
 

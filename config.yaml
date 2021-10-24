@@ -37,5 +37,4 @@ spieceasi_configs:
 phyloseq_configs:
   output_dir: "data/phyloseq_results/"
   config1_jaccard:
-    distance: "binomial"
-    max.dist: 0.9
+

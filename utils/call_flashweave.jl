@@ -1,14 +1,8 @@
 using Pkg
 
-open(snakemake.log[1], "w") do out
-    redirect_stdout(out) do
-        redirect_stderr(out) do
-            if "FlashWeave" ∉ keys(Pkg.installed())
-                Pkg.add("FlashWeave")
-            end
-        end
-    end
-end
+if "FlashWeave" ∉ keys(Pkg.installed())
+    Pkg.add("FlashWeave")
+
 
 using Distributed
 addprocs(snakemake.threads)
