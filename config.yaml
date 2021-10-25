@@ -4,7 +4,7 @@ input:
   sample_rows: true
   metadata: true
   metadata_fname: "data/fake_data_meta.tsv"
-  max_obs: 50
+  max_obs: 100
 
 methods:
   - flashweave
@@ -37,4 +37,4 @@ spieceasi_configs:
 phyloseq_configs:
   output_dir: "data/phyloseq_results/"
   config1_jaccard:
-
+    method: "jaccard"

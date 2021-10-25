@@ -2,6 +2,7 @@ using Pkg
 
 if "FlashWeave" ∉ keys(Pkg.installed())
     Pkg.add("FlashWeave")
+end
 
 
 using Distributed

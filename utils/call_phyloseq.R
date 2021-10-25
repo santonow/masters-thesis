@@ -16,8 +16,18 @@ for (config.name in names(configs)) {
   if (startsWith(config.name, "config")) {
     config <- configs[[config.name]]
     config[["physeq"]] <- otu.table
-    net <- do.call(make_network, config, type="taxa")
-    write.table(as_data_frame(net), file=snakemake@output[[config.name]], sep = "\t", )
+    config[["type"]] <- "taxa"
+    dists <- distance(otu.table, method = config[["method"]], type = "taxa")
+    config[["distance"]] <- dists
+    net <- do.call(make_network, config)
+    dists.mat <- as.matrix(dists)
+    for (edge in E(net)) {
+      net <- set.edge.attribute(
+        graph = net, name = "weight", index = edge, value = 1 - dists.mat[head_of(net, edge), tail_of(net, edge)]
+      )
+    }
+    write_graph(net, file = snakemake@output[[config.name]], format = "ncol", weights = "weight")
+    # write.table(as_data_frame(net), file=snakemake@output[[config.name]], sep = "\t", )
   }
 }
 

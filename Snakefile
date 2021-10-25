@@ -1,15 +1,24 @@
 import os
+import platform
 
 from utils.utils import make_graph_name
 
 configfile: "config.yaml"
 
+# PLATFORM = platform.system()
+# if PLATFORM == "Darwin":
+#     qiime_env_yaml_name = "qiime2-2021.8-py38-osx-conda.yml"
+# elif PLATFORM == "Linux":
+#     qiime_env_yaml_name = "qiime2-2021.8-py38-linux-conda.yml"
+# else:
+#     raise SystemError(f"Unsupported system: {PLATFORM}")
+
 
 METHODS_EXTENSIONS = [
     ("fastspar", ""),
-    ("spieceasi", "tsv"),
+    ("spieceasi", "edgelist"),
     ("flashweave", "edgelist"),
-    ("phyloseq", "tsv")
+    ("phyloseq", "edgelist")
 ]
 
 def make_outputs(method, ext, wrapper=None, only_files=False):
@@ -50,6 +59,12 @@ def prepare_biom_filename(base_fname, prefix="sanitized_"):
     filename = os.path.splitext(names["base"])[0]
     return filename + ".biom"
 
+# rule download_qiime2_env_yaml:
+#     output:
+#         f"envs/{qiime_env_yaml_name}"
+#     shell:
+#         f"wget -P envs https://data.qiime2.org/distro/core/{qiime_env_yaml_name}"
+
 rule sanitize_input:
     input:
         **pack_input()
@@ -80,7 +95,7 @@ rule SpiecEasi_infer:
     input:
         **prepare_filenames(config["input"]["filename"])
     output:
-        **make_outputs("spieceasi", "tsv")
+        **make_outputs("spieceasi", "edgelist")
     threads: 2
     log:
         "logs/spieceasi.log"
@@ -121,7 +136,7 @@ rule phyloseq_infer:
     input:
         **prepare_filenames(config["input"]["filename"])
     output:
-        **make_outputs("phyloseq", "tsv")
+        **make_outputs("phyloseq", "edgelist")
     log:
         "logs/phyloseq.log"
     benchmark:

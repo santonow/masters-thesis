@@ -4,13 +4,16 @@ import csv
 import networkx as nx
 
 from occurence_table import OTUTable
-from utils import make_graph_name
+from .utils import make_graph_name
 
 table = OTUTable.from_tsv(snakemake.input["base"], snakemake.input["meta"])
 
 
-def parse_edgelist(fname):
-    return nx.read_edgelist(fname, data=(('weight', float),), delimiter='\t')
+def parse_edgelist(fname, delimiter):
+    if delimiter is not None:
+        return nx.read_edgelist(fname, data=(('weight', float),), delimiter='\t')
+    else:
+        return nx.read_edgelist(fname, data=(('weight', float),))
 
 
 def read_tsv(fname):
@@ -53,7 +56,11 @@ def read_fastspar(fname):
 
 for filepath in snakemake.input['networks']:
     if filepath.endswith('.edgelist'):
-        graph = parse_edgelist(filepath)
+        if 'flashweave' in filepath:
+            delimiter = '\t'
+        else:
+            delimiter = None
+        graph = parse_edgelist(filepath, delimiter)
     elif filepath.endswith('.tsv'):
         graph = read_tsv(filepath)
     elif os.path.isdir(filepath):
