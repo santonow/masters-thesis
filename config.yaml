@@ -4,13 +4,7 @@ input:
   sample_rows: true
   metadata: true
   metadata_fname: "data/fake_data_meta.tsv"
-  max_obs: 100
-
-methods:
-  - flashweave
-  - spieceasi
-  - phyloseq
-  - fastspar
+  min_tot_abundance: 1000
 
 fastspar_configs:
   output_dir: "data/fastspar_results/"

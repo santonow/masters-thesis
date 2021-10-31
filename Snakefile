@@ -65,7 +65,7 @@ def prepare_biom_filename(base_fname, prefix="sanitized_"):
 #     shell:
 #         f"wget -P envs https://data.qiime2.org/distro/core/{qiime_env_yaml_name}"
 
-rule sanitize_input:
+rule standarize_input:
     input:
         **pack_input()
     output:
@@ -161,6 +161,8 @@ rule standarize_networks:
         *prepare_network_inputs(make_graph_name)["networks"]
     log:
         "logs/standarize_networks.log"
+    conda:
+        "envs/file_manipulation.yaml"
     benchmark:
         "benchmarks/standarize_networks.benchmark"
     script:

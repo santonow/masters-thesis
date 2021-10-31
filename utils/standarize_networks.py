@@ -4,7 +4,7 @@ import csv
 import networkx as nx
 
 from occurence_table import OTUTable
-from .utils import make_graph_name
+from utils import make_graph_name
 
 table = OTUTable.from_tsv(snakemake.input["base"], snakemake.input["meta"])
 

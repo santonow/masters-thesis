@@ -12,10 +12,10 @@ if snakemake.config["input"]["format"] == "tsv":
         sample_metadata_fpath=metadata_path
     )
 
-    table.to_tsv(snakemake.output[0], max_obs=snakemake.config["input"]["max_obs"])
+    table.to_tsv(snakemake.output[0], min_tot_abundance=snakemake.config["input"]["min_tot_abundance"])
 
 elif snakemake.config["input"]["format"] == "biom":
     table = OTUTable.from_hdf5(snakemake.input[0])
 
-    table.to_tsv(snakemake.output[0])
+    table.to_tsv(snakemake.output[0], min_tot_abundance=snakemake.config["input"]["min_tot_abundance"])
 

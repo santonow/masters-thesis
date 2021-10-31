@@ -48,25 +48,28 @@ class OTUTable:
     def to_csv(
         self, filepath, delimiter=',', gzipped=False,
         metadata_suffix='meta', transpose=False,
-        max_obs=None
+        min_tot_abundance=None
     ):
         with self.create_writer(gzipped)(filepath) as writer:
             if transpose:
                 tbl = self.table.transpose()
             else:
                 tbl = self.table
-            if max_obs is not None:
-                chosen_ids = sorted(
-                    tbl.ids(axis='observation'),
-                    reverse=True,
-                    key=lambda x: np.std(
-                        tbl.data(x, axis='observation') - np.mean(tbl.data(x, axis='observation'))
-                    )
-                )[:max_obs + 1]
+            if min_tot_abundance is not None:
+                chosen_ids = [
+                    _id for _id in tbl.ids(axis='observation')
+                    if sum(tbl.data(_id, axis='observation')) > min_tot_abundance
+                ]
+
+                n_obs = len(tbl.ids(axis='observation'))
 
                 tbl = tbl.filter(
                     ids_to_keep=chosen_ids,
                     axis='observation'
+                )
+                print(
+                    f'Filtering {n_obs - len(chosen_ids)} / {n_obs} '
+                    f'OTUs with low total abundance (<{min_tot_abundance})'
                 )
             for line in tbl.delimited_self(delimiter).split('\n')[1:]:
                 writer.write(line + '\n')
