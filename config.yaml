@@ -1,9 +1,10 @@
 input:
-  filename: "data/fake_data.tsv"
+  filename: "amplicon_occurences_proper.tsv"
+  otu_seqs_filename: "db_w5_seqs.fasta"
   format: "tsv"
-  sample_rows: true
+  sample_rows: false
   metadata: true
-  metadata_fname: "data/fake_data_meta.tsv"
+  metadata_fname: "amplicon_station_metadata.tsv"
   min_tot_abundance: 1000
 
 fastspar_configs:

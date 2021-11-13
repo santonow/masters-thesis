@@ -1,9 +1,21 @@
 import os
 import platform
+import requests
+import json
+
 
 from utils.utils import make_graph_name
 
 configfile: "config.yaml"
+
+PR2 = "https://github.com/pr2database/pr2database/releases/latest/download/pr2_version_4.14.0_SSU_taxo_long.fasta.gz"
+
+def get_pr2_url():
+    response = requests.get('https://api.github.com/repos/pr2database/pr2database/releases/latest')
+    j = json.loads(response.text)
+    for asset in j['assets']:
+        if asset['name'].endswith('SSU_taxo_long.fasta.gz'):
+            return asset['browser_download_url']
 
 # PLATFORM = platform.system()
 # if PLATFORM == "Darwin":
@@ -20,6 +32,8 @@ METHODS_EXTENSIONS = [
     ("flashweave", "edgelist"),
     ("phyloseq", "edgelist")
 ]
+
+
 
 def make_outputs(method, ext, wrapper=None, only_files=False):
     out = dict()
@@ -65,6 +79,31 @@ def prepare_biom_filename(base_fname, prefix="sanitized_"):
 #     shell:
 #         f"wget -P envs https://data.qiime2.org/distro/core/{qiime_env_yaml_name}"
 
+rule download_pr2:
+    output:
+        f"data/blast/pr2.fasta"
+    conda:
+        "envs/data_download.yaml"
+    shell:
+        f"""echo {get_pr2_url()}
+        wget {get_pr2_url()} -O data/blast/pr2.fasta.gz
+        gunzip data/blast/pr2.fasta.gz
+        """
+
+rule run_blast:
+    input:
+        "data/blast/pr2.fasta",
+        config['input']['otu_seqs_filename']
+    output:
+        "data/blast/results.out"
+    conda:
+        "envs/blast.yaml"
+    threads: 4
+    shell:
+        """makeblastdb -in {input[0]} -title pr2 -dbtype nucl -out data/blast/pr2
+        blastn -db data/blast/pr2 -query {input[1]} -out data/blast/results.out -num_threads {threads} -outfmt 6
+        """
+
 rule standarize_input:
     input:
         **pack_input()
@@ -96,7 +135,7 @@ rule SpiecEasi_infer:
         **prepare_filenames(config["input"]["filename"])
     output:
         **make_outputs("spieceasi", "edgelist")
-    threads: 2
+    threads: 8
     log:
         "logs/spieceasi.log"
     benchmark:
@@ -122,7 +161,7 @@ rule flashweave_infer:
         prepare_filenames(config["input"]["filename"])["meta"]
     output:
         **make_outputs("flashweave", "edgelist")
-    threads: 2
+    threads: 3
     log:
         "logs/flashweave.log"
     benchmark:
