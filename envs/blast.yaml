@@ -1,4 +1,8 @@
 channels:
   - bioconda
+  - conda-forge
+  - base
 dependencies:
   - blast=2.6.0
+  - biopython=1.78
+  - tqdm

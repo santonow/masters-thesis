@@ -9,7 +9,8 @@ if snakemake.config["input"]["format"] == "tsv":
     table = OTUTable.from_tsv(
         snakemake.input["base"],
         sample_rows=snakemake.config["input"]["sample_rows"],
-        sample_metadata_fpath=metadata_path
+        sample_metadata_fpath=metadata_path,
+        taxonomy_fpath=snakemake.input["tax"]
     )
 
     table.to_tsv(snakemake.output[0], min_tot_abundance=snakemake.config["input"]["min_tot_abundance"])

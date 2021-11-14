@@ -56,6 +56,7 @@ def pack_input():
     }
     if "metadata_fname" in config["input"]:
         inp["meta"] = config["input"]["metadata_fname"]
+    inp["tax"] = "data/taxonomy.tsv"
     return inp
 
 def prepare_filenames(base_fname, prefix="sanitized_"):
@@ -95,14 +96,27 @@ rule run_blast:
         "data/blast/pr2.fasta",
         config['input']['otu_seqs_filename']
     output:
-        "data/blast/results.out"
+        "data/blast/results.out.gz"
     conda:
         "envs/blast.yaml"
-    threads: 4
+    threads: 8
     shell:
         """makeblastdb -in {input[0]} -title pr2 -dbtype nucl -out data/blast/pr2
-        blastn -db data/blast/pr2 -query {input[1]} -out data/blast/results.out -num_threads {threads} -outfmt 6
+        blastn -db data/blast/pr2 -query {input[1]} -num_threads {threads} -outfmt 6 \
+        | gzip --best -c \
+        > data/blast/results.out.gz
         """
+
+rule get_taxonomy:
+    input:
+        "data/blast/results.out.gz"
+    output:
+        "data/taxonomy.tsv"
+    conda:
+        "envs/blast.yaml"
+    threads: 8
+    shell:
+        """python utils/parse_blast_results.py {input} {threads} {output}"""
 
 rule standarize_input:
     input:

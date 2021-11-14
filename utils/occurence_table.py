@@ -1,6 +1,7 @@
 import csv
 import gzip
 import os
+from typing import Set
 from functools import partial
 
 import biom
@@ -11,8 +12,9 @@ import numpy as np
 
 class OTUTable:
 
-    def __init__(self, table: biom.Table):
+    def __init__(self, table: biom.Table, otus_with_lineage: Set[str]):
         self.table = table
+        self.otus_with_lineage = otus_with_lineage
 
     def __getattr__(self, item):
         if item not in self.__dict__:
@@ -48,29 +50,35 @@ class OTUTable:
     def to_csv(
         self, filepath, delimiter=',', gzipped=False,
         metadata_suffix='meta', transpose=False,
-        min_tot_abundance=None
+        min_tot_abundance=None, filter_tax=True
     ):
         with self.create_writer(gzipped)(filepath) as writer:
             if transpose:
                 tbl = self.table.transpose()
             else:
                 tbl = self.table
+            chosen_ids = set(self.table.ids(axis='observation'))
+            if filter_tax:
+                chosen_ids &= self.otus_with_lineage
+                filtered_by_tax = len(set(self.table.ids(axis='observation')) - chosen_ids)
             if min_tot_abundance is not None:
-                chosen_ids = [
+                chosen_ids &= {
                     _id for _id in tbl.ids(axis='observation')
                     if sum(tbl.data(_id, axis='observation')) > min_tot_abundance
-                ]
+                }
+            filtered_by_total_abundance = len(set(self.table.ids(axis='observation')) - chosen_ids) - filtered_by_tax
 
-                n_obs = len(tbl.ids(axis='observation'))
+            n_obs = len(tbl.ids(axis='observation'))
 
-                tbl = tbl.filter(
-                    ids_to_keep=chosen_ids,
-                    axis='observation'
-                )
-                print(
-                    f'Filtering {n_obs - len(chosen_ids)} / {n_obs} '
-                    f'OTUs with low total abundance (<{min_tot_abundance})'
-                )
+            tbl = tbl.filter(
+                ids_to_keep=chosen_ids,
+                axis='observation'
+            )
+            print(
+                f'Filtering {n_obs - len(chosen_ids)} / {n_obs} OTUs.\n'
+                f'- {filtered_by_tax} because no assigned eukaryotic taxonomy.\n'
+                f'- {filtered_by_total_abundance} because low total abundance.'
+            )
             for line in tbl.delimited_self(delimiter).split('\n')[1:]:
                 writer.write(line + '\n')
         if self.table._sample_metadata is not None:
@@ -88,9 +96,17 @@ class OTUTable:
 
     @classmethod
     def from_tsv(
-        cls, fpath, sample_metadata_fpath=None, obs_metadata_fpath=None, gzipped=False, sample_rows=True
+        cls, fpath, sample_metadata_fpath=None, obs_metadata_fpath=None,
+        taxonomy_fpath=None,gzipped=False, sample_rows=True
     ):
         dummy_fun = lambda x: x
+        otus_with_taxonomy = set()
+        if taxonomy_fpath is not None:
+            with open(taxonomy_fpath, 'rt') as handle:
+                reader = csv.reader(handle, delimiter='\t')
+                next(reader)
+                for otu_id, *_ in reader:
+                    otus_with_taxonomy.add(otu_id)
         with cls.create_opener(gzipped)(fpath) as lines:
             table = biom.Table.from_tsv(lines, None, None, dummy_fun)  # noqa
             if sample_rows:
@@ -101,7 +117,7 @@ class OTUTable:
             if obs_metadata_fpath is not None:
                 obs_metadata = cls.read_metadata(sample_metadata_fpath)
                 table.add_metadata(obs_metadata, axis='observation')  # noqa
-            return cls(table)
+            return cls(table, otus_with_taxonomy)
 
     def to_hdf5(self, filepath):
         with h5py.File(filepath, 'w') as file:
