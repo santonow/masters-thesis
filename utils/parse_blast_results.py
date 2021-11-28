@@ -1,6 +1,7 @@
 import csv
 import gzip
 import sys
+from collections import Counter
 from typing import Optional, List
 from io import StringIO
 
@@ -44,25 +45,25 @@ def reader(input_queue: Queue, output_queue: Queue):
         if item is None:
             output_queue.put(None)
             break
-        try:
-            record = SearchIO.read(StringIO(item), 'blast-tab')
-        except ValueError:
-            print(item)
-            continue
+        record = SearchIO.read(StringIO(item), 'blast-tab')
         best_lineage = determine_best_lineage(record.hsps)
         if best_lineage is not None and best_lineage[0] == 'Eukaryota':
             output_queue.put([record.id] + best_lineage)
 
 
-def writer(output_queue: Queue, output_fname: str):
+def writer(output_queue: Queue, output_fname: str, threads: int):
+    sentinels_encountered = 0
     with open(output_fname, 'w') as handle:
         csv_writer = csv.writer(handle, delimiter='\t')
         csv_writer.writerow(['otu_id'] + RANKS)
         while True:
             item = output_queue.get()
             if item is None:
-                break
-            csv_writer.writerow(item)
+                sentinels_encountered += 1
+                if sentinels_encountered == threads:
+                    break
+            else:
+                csv_writer.writerow(item)
 
 
 def get_n_otus(fname):
@@ -78,7 +79,7 @@ def get_lineage_from_description(desc: str) -> List[str]:
 
 
 def determine_best_lineage(hsps: List[SearchIO.HSP], first_n: int = 10) -> Optional[List[str]]:
-    if len(hsps) < 10:
+    if len(hsps) < first_n:
         return None
     lineages = [
         get_lineage_from_description(hsp.hit_id)
@@ -87,31 +88,36 @@ def determine_best_lineage(hsps: List[SearchIO.HSP], first_n: int = 10) -> Optio
         )[:first_n]
     ]
     i = 8
-    while not all(lineage[i-1] == lineages[0][i-1] for lineage in lineages) and i > 0:
+    lineage_counter = Counter(tuple(lineage) for lineage in lineages)
+    most_popular_lineage, count = lineage_counter.most_common(1)[0]
+    while not count > first_n / 2:
         i -= 1
+        lineage_counter = Counter(tuple(lineage[:i]) for lineage in lineages)
+        most_popular_lineage, count = lineage_counter.most_common(1)[0]
     if i <= 0:
         return None
-    return lineages[0][:i]
+    return list(most_popular_lineage)
 
 
 def prepare_tax_table(in_file, n_threads, out_file):
-    in_queue = Queue(n_threads)
-    out_queue = Queue(n_threads)
+    threads = n_threads - 1 if n_threads > 1 else 1
+    in_queue = Queue(threads)
+    out_queue = Queue(threads)
 
     processes = []
-    for _ in range(min(1, n_threads - 1)):
+    for _ in range(threads):
         process = Process(
             target=reader, args=(in_queue, out_queue)
         )
         process.start()
         processes.append(process)
-    writer_process = Process(target=writer, args=(out_queue, out_file))
+    writer_process = Process(target=writer, args=(out_queue, out_file, threads))
     writer_process.start()
     processes.append(writer_process)
 
     for lines in tqdm(lines_reader(in_file), total=get_n_otus(in_file)):
         in_queue.put(lines)
-    for _ in range(min(1, n_threads - 1)):
+    for _ in range(threads):
         in_queue.put(None)
 
     for process in processes:

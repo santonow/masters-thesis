@@ -3,11 +3,20 @@ import csv
 
 import networkx as nx
 
-from occurence_table import OTUTable
 from utils import make_graph_name
+from plot.prepare_vis import prepare_files
 
-table = OTUTable.from_tsv(snakemake.input["base"], snakemake.input["meta"])
 
+RANKS = [
+    'kingdom',
+    'supergroup',
+    'division',
+    'class',
+    'order',
+    'family',
+    'genus',
+    'species'
+]
 
 def parse_edgelist(fname, delimiter):
     if delimiter is not None:
@@ -67,6 +76,19 @@ for filepath in snakemake.input['networks']:
         graph = read_fastspar(filepath)
     else:
         raise ValueError('Unrecognized network format!')
-    for _id in table.table.ids(axis='observation'):
-        graph.add_node(_id)
-    nx.write_edgelist(graph, make_graph_name(filepath))
+    nx.write_edgelist(
+        graph, make_graph_name(filepath), data=['weight'], delimiter='\t'
+    )
+    for rank in RANKS:
+        prepare_files(
+            make_graph_name(filepath),
+            snakemake.input['tax_table'],
+            snakemake.config.get('visualization', dict()).get('max_nodes'),
+            tax_level=rank
+        )
+    prepare_files(
+        make_graph_name(filepath),
+        snakemake.input['tax_table'],
+        snakemake.config.get('visualization', dict()).get('max_nodes'),
+        tax_level=None
+    )

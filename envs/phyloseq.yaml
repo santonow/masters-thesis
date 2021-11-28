@@ -9,3 +9,5 @@ dependencies:
   - bioconductor-phyloseq=1.34.0
   - r-devtools
   - openssl
+  - r-network
+  - r-sna

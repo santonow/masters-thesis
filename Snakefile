@@ -1,8 +1,18 @@
 import os
-import platform
 import requests
 import json
 
+
+RANKS = [
+    'kingdom',
+    'supergroup',
+    'division',
+    'class',
+    'order',
+    'family',
+    'genus',
+    'species'
+]
 
 from utils.utils import make_graph_name
 
@@ -28,11 +38,10 @@ def get_pr2_url():
 
 METHODS_EXTENSIONS = [
     ("fastspar", ""),
-    ("spieceasi", "edgelist"),
+    # ("spieceasi", "edgelist"),
     ("flashweave", "edgelist"),
     ("phyloseq", "edgelist")
 ]
-
 
 
 def make_outputs(method, ext, wrapper=None, only_files=False):
@@ -59,17 +68,19 @@ def pack_input():
     inp["tax"] = "data/taxonomy.tsv"
     return inp
 
-def prepare_filenames(base_fname, prefix="sanitized_"):
+def prepare_filenames(base_fname, prefix="standarized_"):
     _, filename = os.path.split(base_fname)
     name, extensions = filename.split('.', 1)
     metadata_name = name + "_meta"
     metadata_filepath = os.path.join("data", prefix + metadata_name + '.' + extensions)
-    return {
-        "base": os.path.join("data", prefix + filename),
-        "meta": metadata_filepath
+    d = {
+        "base": os.path.join("data", prefix + filename)
     }
+    if config["input"]["metadata"]:
+        d["meta"] = metadata_filepath
+    return d
 
-def prepare_biom_filename(base_fname, prefix="sanitized_"):
+def prepare_biom_filename(base_fname, prefix="standarized_"):
     names = prepare_filenames(base_fname, prefix)
     filename = os.path.splitext(names["base"])[0]
     return filename + ".biom"
@@ -84,10 +95,9 @@ rule download_pr2:
     output:
         f"data/blast/pr2.fasta"
     conda:
-        "envs/data_download.yaml"
+        "envs/file_manipulation.yaml"
     shell:
-        f"""echo {get_pr2_url()}
-        wget {get_pr2_url()} -O data/blast/pr2.fasta.gz
+        f"""wget {get_pr2_url()} -O data/blast/pr2.fasta.gz
         gunzip data/blast/pr2.fasta.gz
         """
 
@@ -117,6 +127,17 @@ rule get_taxonomy:
     threads: 8
     shell:
         """python utils/parse_blast_results.py {input} {threads} {output}"""
+
+rule get_known_relations:
+    input:
+        "data/taxonomy.tsv",
+    output:
+        "data/pida_v1.08.zip",
+        "data/known_relations.tsv"
+    conda:
+        "envs/file_manipulation.yaml"
+    script:
+        "utils/collect_known_interactions.py"
 
 rule standarize_input:
     input:
@@ -171,11 +192,14 @@ rule make_biom:
 
 rule flashweave_infer:
     input:
-        prepare_biom_filename(config["input"]["filename"]),
-        prepare_filenames(config["input"]["filename"])["meta"]
+        *(
+            [prepare_biom_filename(config["input"]["filename"])] + (
+                [prepare_filenames(config["input"]["filename"])["meta"]] if config["input"]["metadata"] else []
+            )
+        )
     output:
         **make_outputs("flashweave", "edgelist")
-    threads: 3
+    threads: 5
     log:
         "logs/flashweave.log"
     benchmark:
@@ -200,18 +224,55 @@ rule phyloseq_infer:
         "utils/call_phyloseq.R"
 
 
-def prepare_network_inputs(wrapper=lambda x: x):
+def prepare_network_files(wrapper=lambda x: x, input=True):
     d = prepare_filenames(config["input"]["filename"])
     d["networks"] = []
     for method, extension in METHODS_EXTENSIONS:
         d["networks"].extend(make_outputs(method, extension, wrapper, only_files=True))
-    return d
+    d["tax_table"] = "data/taxonomy.tsv"
+    dirnames = []
+    if not input:
+        d["configs"] = []
+        for network_fname in d["networks"]:
+            fname = os.path.split(network_fname)[1].split(".")[0]
+            new_dir = os.path.join(os.path.split(network_fname)[0], fname)
+            dirnames.append(directory(new_dir))
+            d["configs"].append(
+                {
+                    "tax_table": os.path.join(new_dir, "reduced_taxonomy.tsv"),
+                    "network": os.path.join(new_dir, "reduced_graph.edgelist")
+                }
+            )
+            for rank in RANKS:
+                new_dir = os.path.join(os.path.split(network_fname)[0], rank + '_' + fname)
+                dirnames.append(directory(new_dir))
+                d["configs"].append(
+                    {
+                        "tax_table": os.path.join(new_dir, "reduced_taxonomy.tsv"),
+                        "network": os.path.join(new_dir, "reduced_graph.edgelist")
+                    }
+                )
+        for key in list(d):
+            if key not in ["networks", "tax_table", "configs"]:
+                del d[key]
+    all_files = []
+    all_files.extend(d["networks"])
+    if not input:
+        for conf in d["configs"]:
+            all_files.append(conf["tax_table"])
+            all_files.append(conf["network"])
+    for k, v in d.items():
+        if k not in {"networks", "configs", "tax_table"}:
+            all_files.append(v)
+
+    return d, all_files, dirnames
 
 rule standarize_networks:
     input:
-        **prepare_network_inputs()
+        **prepare_network_files(input=True)[0]
     output:
-        *prepare_network_inputs(make_graph_name)["networks"]
+        *prepare_network_files(make_graph_name, input=False)[1],
+        *prepare_network_files(make_graph_name, input=False)[2]
     log:
         "logs/standarize_networks.log"
     conda:
@@ -221,5 +282,49 @@ rule standarize_networks:
     script:
         "utils/standarize_networks.py"
 
+rule make_consensus_network:
+    input:
+        *prepare_network_files(make_graph_name, input=False)[0]["networks"],
+        "data/taxonomy.tsv"
+    output:
+        "data/consensus_network.edgelist",
+        directory("data/consensus_network"),
+        "data/consensus_network/reduced_taxonomy.tsv",
+        "data/consensus_network/reduced_graph.edgelist"
+    log:
+        "logs/make_consensus_network.log"
+    conda:
+        "envs/file_manipulation.yaml"
+    benchmark:
+        "benchmarks/standarize_networks.benchmark"
+    script:
+        "utils/make_consensus_network.py"
+
+def prepare_inputs_for_vis():
+    res = dict()
+    res["networks"] = prepare_network_files(make_graph_name)[0]["networks"]
+    res["otu_table"] = prepare_filenames(config["input"]["filename"])["base"]
+    res["tax_table"] = "data/taxonomy.tsv"
+    return res
+
+def prepare_outputs_for_vis():
+    outputs = dict()
+    for inp in prepare_network_files(make_graph_name, input=False)[2]:
+        base, name = os.path.split(inp)
+        outputs[inp] = os.path.join(base, 'vis_' + name + '.png')
+    return outputs
+
+rule generate_plots:
+    input:
+        *prepare_network_files(make_graph_name, input=False)[2],
+        "data/consensus_network"
+    output:
+        **{"data/consensus_network": "data/vis_consensus_network.png"},
+        **prepare_outputs_for_vis(),
+
+    conda:
+        "envs/phyloseq.yaml"
+    script:
+        "utils/plot/make_visualizations.R"
 
 

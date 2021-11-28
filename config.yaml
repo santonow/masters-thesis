@@ -1,9 +1,9 @@
 input:
-  filename: "amplicon_occurences_proper.tsv"
+  filename: "full_amplicon_occurences.tsv"
   otu_seqs_filename: "db_w5_seqs.fasta"
   format: "tsv"
-  sample_rows: false
-  metadata: true
+  sample_rows: true
+  metadata: false
   metadata_fname: "amplicon_station_metadata.tsv"
   min_tot_abundance: 1000
 
@@ -20,6 +20,7 @@ flashweave_configs:
   config1:
     sensitive:     true
     heterogeneous: false
+    min_weight: 0.3
 
 spieceasi_configs:
   output_dir: "data/spieceasi_results/"
@@ -33,3 +34,15 @@ phyloseq_configs:
   output_dir: "data/phyloseq_results/"
   config1_jaccard:
     method: "jaccard"
+    max.dist: 0.6
+    min.weight: 0.1
+  config2_canberra:
+    method: "canberra"
+    max.dist: 0.6
+    min.weight: 0.1
+
+visualization:
+  max_nodes: 50
+
+consensus_network:
+  min_programs: 2
