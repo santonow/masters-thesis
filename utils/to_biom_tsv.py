@@ -13,7 +13,10 @@ if snakemake.config["input"]["format"] == "tsv":
         taxonomy_fpath=snakemake.input["tax"]
     )
 
-    table.to_tsv(snakemake.output[0], min_tot_abundance=snakemake.config["input"]["min_tot_abundance"])
+    table.to_tsv(
+        snakemake.output[0], min_tot_abundance=snakemake.config["input"].get("min_tot_abundance"),
+        relative_abundance=snakemake.config["input"].get("relative_abundance")
+    )
 
 elif snakemake.config["input"]["format"] == "biom":
     table = OTUTable.from_hdf5(snakemake.input[0])

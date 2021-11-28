@@ -5,7 +5,8 @@ input:
   sample_rows: true
   metadata: false
   metadata_fname: "amplicon_station_metadata.tsv"
-  min_tot_abundance: 1000
+  min_tot_abundance: null
+  relative_abundance: 0.00000001
 
 fastspar_configs:
   output_dir: "data/fastspar_results/"

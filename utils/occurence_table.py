@@ -50,11 +50,12 @@ class OTUTable:
     def to_csv(
         self, filepath, delimiter=',', gzipped=False,
         metadata_suffix='meta', transpose=False,
-        min_tot_abundance=None, filter_tax=True
+        min_tot_abundance=None, filter_tax=True,
+        relative_abundance=1e-8
     ):
         with self.create_writer(gzipped)(filepath) as writer:
             if transpose:
-                tbl = self.table.transpose()
+                tbl: biom.Table = self.table.transpose()
             else:
                 tbl = self.table
             chosen_ids = set(self.table.ids(axis='observation'))
@@ -68,6 +69,16 @@ class OTUTable:
                 }
             filtered_by_total_abundance = len(set(self.table.ids(axis='observation')) - chosen_ids) - filtered_by_tax
 
+            if relative_abundance is not None:
+                tbl_sum = tbl.sum(axis='whole')
+                chosen_ids &= {
+                    _id for _id in tbl.ids(axis='observation')
+                    if sum(tbl.data(_id, axis='observation'))/tbl_sum >= relative_abundance
+                }
+            filtered_by_relative_abundance = len(
+                set(self.table.ids(axis='observation')) - chosen_ids
+            ) - filtered_by_tax - filtered_by_total_abundance
+
             n_obs = len(tbl.ids(axis='observation'))
 
             tbl = tbl.filter(
@@ -77,7 +88,8 @@ class OTUTable:
             print(
                 f'Filtering {n_obs - len(chosen_ids)} / {n_obs} OTUs.\n'
                 f'- {filtered_by_tax} because no assigned eukaryotic taxonomy.\n'
-                f'- {filtered_by_total_abundance} because low total abundance.'
+                f'- {filtered_by_total_abundance} because low total abundance (< {min_tot_abundance}).\n'
+                f'- {filtered_by_relative_abundance} because of low relative abundance (< {relative_abundance}).'
             )
             for line in tbl.delimited_self(delimiter).split('\n')[1:]:
                 writer.write(line + '\n')
