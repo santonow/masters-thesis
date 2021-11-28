@@ -21,7 +21,6 @@ flashweave_configs:
   config1:
     sensitive:     true
     heterogeneous: false
-    min_weight: 0.3
 
 spieceasi_configs:
   output_dir: "data/spieceasi_results/"
