@@ -51,7 +51,7 @@ class OTUTable:
         self, filepath, delimiter=',', gzipped=False,
         metadata_suffix='meta', transpose=False,
         min_tot_abundance=None, filter_tax=True,
-        relative_abundance=1e-8
+        relative_abundance=1e-8, remove_most_zeros=True
     ):
         with self.create_writer(gzipped)(filepath) as writer:
             if transpose:
@@ -70,6 +70,7 @@ class OTUTable:
             filtered_by_total_abundance = len(set(self.table.ids(axis='observation')) - chosen_ids) - filtered_by_tax
 
             if relative_abundance is not None:
+                # based on https://doi.org/10.1126/science.1262073
                 tbl_sum = tbl.sum(axis='whole')
                 chosen_ids &= {
                     _id for _id in tbl.ids(axis='observation')
@@ -78,6 +79,16 @@ class OTUTable:
             filtered_by_relative_abundance = len(
                 set(self.table.ids(axis='observation')) - chosen_ids
             ) - filtered_by_tax - filtered_by_total_abundance
+            if remove_most_zeros:
+                # based on https://doi.org/10.1371/journal.pcbi.1002606, altered to filter only OTUs with >99/100 zeros
+                n_samples = tbl.length(axis='sample')
+                chosen_ids &= {
+                    _id for _id in tbl.ids(axis='observation')
+                    if list(tbl.data(_id, axis='observation')).count(0)/n_samples < 99/100
+                }
+            filtered_by_zero_count = len(
+                set(self.table.ids(axis='observation')) - chosen_ids
+            ) - filtered_by_tax - filtered_by_total_abundance - filtered_by_relative_abundance
 
             n_obs = len(tbl.ids(axis='observation'))
 
@@ -89,7 +100,8 @@ class OTUTable:
                 f'Filtering {n_obs - len(chosen_ids)} / {n_obs} OTUs.\n'
                 f'- {filtered_by_tax} because no assigned eukaryotic taxonomy.\n'
                 f'- {filtered_by_total_abundance} because low total abundance (< {min_tot_abundance}).\n'
-                f'- {filtered_by_relative_abundance} because of low relative abundance (< {relative_abundance}).'
+                f'- {filtered_by_relative_abundance} because of low relative abundance (< {relative_abundance}).\n'
+                f'- {filtered_by_zero_count} because proportion of zeros greater than 99/100'
             )
             for line in tbl.delimited_self(delimiter).split('\n')[1:]:
                 writer.write(line + '\n')
@@ -109,7 +121,7 @@ class OTUTable:
     @classmethod
     def from_tsv(
         cls, fpath, sample_metadata_fpath=None, obs_metadata_fpath=None,
-        taxonomy_fpath=None,gzipped=False, sample_rows=True
+        taxonomy_fpath=None, gzipped=False, sample_rows=True
     ):
         dummy_fun = lambda x: x
         otus_with_taxonomy = set()
