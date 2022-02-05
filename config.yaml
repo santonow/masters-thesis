@@ -41,6 +41,10 @@ phyloseq_configs:
     max.dist: 0.6
     min.weight: 0.1
 
+conet_configs:
+  output_dir: "data/conet_results/"
+  config_default: {}
+
 visualization:
   max_nodes: 50
 
