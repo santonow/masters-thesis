@@ -40,7 +40,8 @@ METHODS_EXTENSIONS = [
     ("fastspar", ""),
     # ("spieceasi", "edgelist"),
     ("flashweave", "edgelist"),
-    ("phyloseq", "edgelist")
+    ("phyloseq", "edgelist"),
+    ("conet", "tsv")
 ]
 
 
@@ -128,6 +129,16 @@ rule get_taxonomy:
     shell:
         """python utils/parse_blast_results.py {input} {threads} {output}"""
 
+rule standarize_input:
+    input:
+        **pack_input()
+    output:
+        **prepare_filenames(config["input"]["filename"])
+    conda:
+        "envs/file_manipulation.yaml"
+    script:
+        "utils/to_biom_tsv.py"
+
 rule get_known_relations:
     input:
         "data/taxonomy.tsv",
@@ -138,16 +149,6 @@ rule get_known_relations:
         "envs/file_manipulation.yaml"
     script:
         "utils/collect_known_interactions.py"
-
-rule standarize_input:
-    input:
-        **pack_input()
-    output:
-        **prepare_filenames(config["input"]["filename"])
-    conda:
-        "envs/file_manipulation.yaml"
-    script:
-        "utils/to_biom_tsv.py"
 
 rule fastspar_infer:
     priority: 0
@@ -222,6 +223,22 @@ rule phyloseq_infer:
         "envs/phyloseq.yaml"
     script:
         "utils/call_phyloseq.R"
+
+
+rule conet_infer:
+    input:
+        **prepare_filenames(config["input"]["filename"])
+    output:
+        **make_outputs("conet", "tsv")
+    log:
+        "logs/conet.log"
+    threads: 8
+    benchmark:
+        "benchmarks/conet.benchmark"
+    conda:
+        "envs/custom_conet.yaml"
+    shell:
+        """python utils/run_correlation_inference.py {input} {threads} {output} >> {log}"""
 
 
 def prepare_network_files(wrapper=lambda x: x, input=True):

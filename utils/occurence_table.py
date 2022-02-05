@@ -47,6 +47,10 @@ class OTUTable:
                 metadata[line[0]] = dict(zip(header[1:], line[1:]))
         return metadata
 
+    @property
+    def matrix(self):
+        return np.array(self.table.matrix_data.todense()).astype(np.float64)
+
     def to_csv(
         self, filepath, delimiter=',', gzipped=False,
         metadata_suffix='meta', transpose=False,
