@@ -47,7 +47,7 @@ for ( d in snakemake@input ) {
   edges[, 1] <- as.character(edges[, 1])
   edges[, 2] <- as.character(edges[, 2])
   edges$weight <- transform.weight(edges[, 3])
-  net <- network(edges, verbices <- cbind(vertex.names = rownames(tax.df), tax.df))
+  net <- network(edges, vertices <- cbind(vertex.names = rownames(tax.df), tax.df))
 
   palette <- RColorBrewer::brewer.pal(9, "Set1")
   names(palette) <- unique(tax.df$supergroup)

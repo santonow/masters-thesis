@@ -126,7 +126,7 @@ if __name__ == '__main__':
     otu_table = OTUTable.from_tsv(inp, sample_rows=False)
     start_time = time.time()
     methods = ['kullback-leibler', 'spearman']
-    network = infer_network(otu_table, 100, methods, 0.05, n_threads)
+    network = infer_network(otu_table, 100, methods, 0.05, int(n_threads))
     print('Took', time.time() - start_time)
     with open(output, 'w') as handle:
         writer = csv.writer(handle, delimiter='\t')

@@ -232,7 +232,7 @@ rule conet_infer:
         **make_outputs("conet", "tsv")
     log:
         "logs/conet.log"
-    threads: 8
+    threads: 4
     benchmark:
         "benchmarks/conet.benchmark"
     conda:
@@ -323,6 +323,20 @@ def prepare_inputs_for_vis():
     res["otu_table"] = prepare_filenames(config["input"]["filename"])["base"]
     res["tax_table"] = "data/taxonomy.tsv"
     return res
+
+rule generate_stats:
+    input:
+        *prepare_network_files(make_graph_name, input=False)[0]["networks"],
+        "data/consensus_network.edgelist"
+    output:
+        "data/stats.xlsx"
+    conda:
+        "envs/file_manipulation.yaml"
+    threads:
+        3
+    script:
+        "utils/generate_statistics.py"
+
 
 def prepare_outputs_for_vis():
     outputs = dict()

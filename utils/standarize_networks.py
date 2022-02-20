@@ -63,8 +63,22 @@ def read_fastspar(fname):
     return graph
 
 
+def parse_conet(fpath):
+    graph = nx.Graph()
+    with open(fpath) as handle:
+        reader = csv.reader(handle, delimiter='\t')
+        header = next(reader)
+        for line in reader:
+            # for now just getting weight as spearman correlation
+            row = dict(zip(header, line))
+            graph.add_edge(row['head'], row['tail'], weight=float(row['spearman_weight']))
+    return graph
+
+
 for filepath in snakemake.input['networks']:
-    if filepath.endswith('.edgelist'):
+    if os.path.split(filepath)[0].endswith('conet_results'):
+        graph = parse_conet(filepath)
+    elif filepath.endswith('.edgelist'):
         if 'flashweave' in filepath:
             delimiter = '\t'
         else:
