@@ -1,6 +1,7 @@
 import os
 from collections import Counter
-from typing import Dict, Callable, Union
+from functools import partial
+from typing import Dict, Callable, Union, Any
 import csv
 import string
 
@@ -41,9 +42,40 @@ class OpenPyXLHandler:
         self.save()
 
 
+def get_n_signs(graph: nx.Graph, sign: str) -> int:
+    n = 0
+    for _, _, attrs in graph.edges(data=True):
+        if attrs['sign'] == sign:
+            n += 1
+    return n
+
+
+def return_if_except(exception, value: Any):
+    def decorator(fun):
+        def wrapper(*args, **kwargs):
+            try:
+                return fun(*args, **kwargs)
+            except exception:
+                return value
+        return wrapper
+    return decorator
+
+
+@return_if_except(nx.NetworkXError, np.inf)
+def get_radius(graph: nx.Graph) -> Union[int, float]:
+    return nx.radius(graph)
+
+
+@return_if_except(nx.NetworkXError, np.inf)
+def get_diameter(graph: nx.Graph) -> Union[int, float]:
+    return nx.diameter(graph)
+
+
 METRIC_TO_FUN: Dict[str, Callable[[nx.Graph], Union[float, int]]] = {
     'Number of nodes': lambda graph: graph.number_of_nodes(),
     'Number of edges': lambda graph: graph.number_of_edges(),
+    'Number of positive interactions': partial(get_n_signs, sign='+'),
+    'Number of negative interactions': partial(get_n_signs, sign='-'),
     'Number of connected components': lambda graph: nx.number_connected_components(graph),
     'Mean network centrality': lambda graph: np.mean(list(nx.degree_centrality(graph).values())),
     'Mean network betweeness': lambda graph: np.mean(list(nx.betweenness_centrality(graph).values())),
@@ -72,8 +104,8 @@ def read_graph(fpath: str) -> nx.Graph:
     graph = nx.Graph()
     with open(fpath) as handle:
         reader = csv.reader(handle, delimiter='\t')
-        for node1, node2, *_ in reader:
-            graph.add_edge(node1, node2)
+        for node1, node2, *attrs in reader:
+            graph.add_edge(node1, node2, sign=attrs[1])
     return graph
 
 

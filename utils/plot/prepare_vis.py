@@ -1,8 +1,8 @@
 from collections import defaultdict
 import os
+from collections import Counter
 
 import networkx as nx
-import numpy as np
 
 
 RANKS = [
@@ -38,7 +38,10 @@ def prepare_files(graph_path, taxonomy_file, max_taxa=100, tax_level=None):
     net = nx.read_edgelist(
         graph_path,
         delimiter='\t',
-        data=(('weight', float),)
+        data=(
+            ('weight', float),
+            ('sign', str)
+        )
     )
 
     max_edges = max_taxa * 3
@@ -56,13 +59,22 @@ def prepare_files(graph_path, taxonomy_file, max_taxa=100, tax_level=None):
         if head in taxonomy and tail in taxonomy:
             if taxonomy[head] != taxonomy[tail]:
                 if len(taxonomy[head]) > lineage_min_length and len(taxonomy[tail]) > lineage_min_length:
-                    edges_per_node[taxonomy[head]][taxonomy[tail]].append(attrs['weight'])
+                    edges_per_node[taxonomy[head]][taxonomy[tail]].append((attrs['weight'], attrs['sign']))
 
     filtered_graph = nx.Graph()
     for head, neighbors in edges_per_node.items():
         for tail, weights in neighbors.items():
             if len(weights) > 1:
-                filtered_graph.add_edge(head, tail, weight=len(weights))
+                signs = Counter([sign for _, sign in weights])
+                if signs['+'] == signs['-']:
+                    continue
+                chosen_sign = signs.most_common()[0][0]
+                filtered_graph.add_edge(
+                    head, tail,
+                    weight=len(weights),
+                    sign=chosen_sign,
+                    sign_prop=signs[chosen_sign]/sum(signs.values())
+                )
 
     indexer = Indexer()
     hash_to_tax = dict()
@@ -86,8 +98,8 @@ def prepare_files(graph_path, taxonomy_file, max_taxa=100, tax_level=None):
         hash_to_tax[head_hash] = head
         tail_hash = indexer(tail)
         hash_to_tax[tail_hash] = tail
-        if new_graph.number_of_edges() >= max_edges:
-            break
+        # if new_graph.number_of_edges() >= max_edges:
+        #     break
         if len(taxa) < max_taxa:
             new_graph.add_edge(head_hash, tail_hash, **attrs)
             taxa.add(head_hash)
@@ -112,7 +124,7 @@ def prepare_files(graph_path, taxonomy_file, max_taxa=100, tax_level=None):
     with open(os.path.join(new_dir, 'reduced_graph.edgelist'), 'w') as handle:
         writer = csv.writer(handle, delimiter='\t')
         for head, tail, attrs in new_graph.edges(data=True):
-            writer.writerow([head, tail, attrs['weight']])
+            writer.writerow([head, tail, attrs['weight'], attrs['sign'], attrs['sign_prop']])
 
 
 

@@ -18,6 +18,17 @@ RANKS = [
     'species'
 ]
 
+
+MAX_EDGES = 50000
+
+
+def filter_graph(graph: nx.Graph, n_edges: int) -> nx.Graph:
+    new_graph = nx.Graph()
+    for head, tail, attrs in sorted(graph.edges(data=True), key=lambda x: abs(x), reverse=True)[:n_edges]:
+        new_graph.add_edge(head, tail, **attrs)
+    return new_graph
+
+
 def parse_edgelist(fname, delimiter):
     if delimiter is not None:
         return nx.read_edgelist(fname, data=(('weight', float),), delimiter='\t')
@@ -90,8 +101,11 @@ for filepath in snakemake.input['networks']:
         graph = read_fastspar(filepath)
     else:
         raise ValueError('Unrecognized network format!')
+    graph = filter_graph(graph, MAX_EDGES)
+    for head, tail, attrs in graph.edges(data=True):
+        graph[head][tail]['sign'] = '+' if attrs['weight'] >= 0 else '-'
     nx.write_edgelist(
-        graph, make_graph_name(filepath), data=['weight'], delimiter='\t'
+        graph, make_graph_name(filepath), data=['weight', 'sign'], delimiter='\t'
     )
     for rank in RANKS:
         prepare_files(
