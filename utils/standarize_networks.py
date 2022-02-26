@@ -24,7 +24,9 @@ MAX_EDGES = 50000
 
 def filter_graph(graph: nx.Graph, n_edges: int) -> nx.Graph:
     new_graph = nx.Graph()
-    for head, tail, attrs in sorted(graph.edges(data=True), key=lambda x: abs(x), reverse=True)[:n_edges]:
+    for head, tail, attrs in sorted(
+        graph.edges(data=True), key=lambda x: abs(x[2]['weight']), reverse=True
+    )[:n_edges]:
         new_graph.add_edge(head, tail, **attrs)
     return new_graph
 
