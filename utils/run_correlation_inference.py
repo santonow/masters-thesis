@@ -10,7 +10,7 @@ import networkx as nx
 
 from occurence_table import OTUTable
 from numba_functions import compute_correlations, compute_p_value, reboot, compute_pvals, \
-    update_mean_variance_parallel, normalize, benjamini_hochberg, merge_p_values
+    update_mean_variance_parallel, normalize, benjamini_hochberg, merge_p_values, clr
 
 
 def delayed(fun):

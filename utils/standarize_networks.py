@@ -24,9 +24,22 @@ MAX_EDGES = 50000
 
 def filter_graph(graph: nx.Graph, n_edges: int) -> nx.Graph:
     new_graph = nx.Graph()
+    pos_edges = 0
+    neg_edges = 0
+    for _, _, attrs in graph.edges(data=True):
+        if attrs['sign'] == '+':
+            pos_edges += 1
+        if attrs['sign'] == '-':
+            neg_edges += 1
+    pos_to_keep = int(n_edges * pos_edges / (pos_edges + neg_edges))
+    neg_to_keep = int(n_edges * neg_edges / (pos_edges + neg_edges))
     for head, tail, attrs in sorted(
-        graph.edges(data=True), key=lambda x: abs(x[2]['weight']), reverse=True
-    )[:n_edges]:
+        graph.edges(data=True), key=lambda x: x[2]['weight'], reverse=True
+    )[:pos_to_keep]:
+        new_graph.add_edge(head, tail, **attrs)
+    for head, tail, attrs in sorted(
+        graph.edges(data=True), key=lambda x: -x[2]['weight'], reverse=True
+    )[:neg_to_keep]:
         new_graph.add_edge(head, tail, **attrs)
     return new_graph
 
@@ -103,9 +116,9 @@ for filepath in snakemake.input['networks']:
         graph = read_fastspar(filepath)
     else:
         raise ValueError('Unrecognized network format!')
-    graph = filter_graph(graph, MAX_EDGES)
     for head, tail, attrs in graph.edges(data=True):
         graph[head][tail]['sign'] = '+' if attrs['weight'] >= 0 else '-'
+    graph = filter_graph(graph, MAX_EDGES)
     nx.write_edgelist(
         graph, make_graph_name(filepath), data=['weight', 'sign'], delimiter='\t'
     )

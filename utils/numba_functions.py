@@ -8,6 +8,7 @@ from scipy.stats import chi2
 
 
 MIN_DOUBLE = np.finfo(np.float64).min
+SMALL_FLOAT = 0.0000001
 
 
 @njit
@@ -216,6 +217,19 @@ def update_mean_variance_parallel(
     _vars = prev_vars + new_vars + (delta ** 2) * prev_n * new_n / n
     means = (prev_n * prev_means + new_n * new_means) / n
     return means, _vars
+
+
+@njit
+def clr(matrix: np.ndarray):
+    matrix = matrix + SMALL_FLOAT
+    geom_mean = np.zeros(matrix.shape[0])
+    for i in range(matrix.shape[0]):
+        geom_mean[i] = np.prod(matrix[i, :]) ** (1/matrix.shape[1])
+    for i in range(matrix.shape[0]):
+        matrix[i, :] /= geom_mean[i]
+    return np.log(matrix)
+
+
 
 
 def matrix_iter(matrix: np.ndarray):
