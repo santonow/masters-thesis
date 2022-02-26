@@ -33,6 +33,7 @@ def filter_graph(graph: nx.Graph, n_edges: int) -> nx.Graph:
             neg_edges += 1
     pos_to_keep = int(n_edges * pos_edges / (pos_edges + neg_edges))
     neg_to_keep = int(n_edges * neg_edges / (pos_edges + neg_edges))
+    print(f'Keeping {pos_to_keep} positive edges and {neg_to_keep} negative edges')
     for head, tail, attrs in sorted(
         graph.edges(data=True), key=lambda x: x[2]['weight'], reverse=True
     )[:pos_to_keep]:
