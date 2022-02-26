@@ -67,8 +67,9 @@ def prepare_files(graph_path, taxonomy_file, max_taxa=100, tax_level=None):
             if len(weights) > 1:
                 signs = Counter([sign for _, sign in weights])
                 if signs['+'] == signs['-']:
-                    continue
-                chosen_sign = signs.most_common()[0][0]
+                    chosen_sign = '?'
+                else:
+                    chosen_sign = signs.most_common()[0][0]
                 filtered_graph.add_edge(
                     head, tail,
                     weight=len(weights),

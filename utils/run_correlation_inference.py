@@ -1,5 +1,6 @@
 import csv
 import sys
+from collections import Counter
 from typing import List, Union
 
 from joblib import Parallel
@@ -97,6 +98,8 @@ def infer_network(
         pvals = next(iter(results.values()))['pvalues']
     if bh:
         pvals = benjamini_hochberg(pvals)
+    rejected_edges = Counter()
+    accepted_edges = Counter()
     for method, result in results.items():
         correlations = result['correlations']
         left_interval, right_interval = result['confidence_interval']
@@ -115,8 +118,14 @@ def infer_network(
                                 left_otu_id, right_otu_id,
                                 pvalue=pvals[i, j],
                             )
+                            accepted_edges[method] += 1
                         network[left_otu_id][right_otu_id][f'{method}_weight'] = correlations[i, j]
                         network[left_otu_id][right_otu_id][f'{method}_pvalue'] = method_pvalues[i, j]
+                    else:
+                        rejected_edges[method] += 1
+    print('Accepted edges:', accepted_edges)
+    print('Rejected edges:', rejected_edges)
+
     return network
 
 
