@@ -22,7 +22,7 @@ class timer:
         self.start_time = time.time()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print(f'Done in {time.time() - self.start_time}s.')
+        print(f'Done in {time.time() - self.start_time:.4f}s.')
         print()
 
 
