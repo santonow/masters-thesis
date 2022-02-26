@@ -13,6 +13,19 @@ from numba_functions import compute_correlations, compute_p_value, reboot, compu
     update_mean_variance_parallel, normalize, benjamini_hochberg, merge_p_values, clr
 
 
+class timer:
+    def __init__(self, message):
+        self.message = message
+
+    def __enter__(self):
+        print(self.message)
+        self.start_time = time.time()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        print(f'Done in {time.time() - self.start_time}s.')
+        print()
+
+
 def delayed(fun):
     return _delayed(fun)
 
@@ -72,15 +85,18 @@ def infer_network(
         methods = [methods]
     results = dict()
     for method in methods:
-        matrix = otu_table.matrix.T
+        with timer(f'Computing clr transformation for method {method}...'):
+            matrix = clr(otu_table.matrix.T)
         if method != 'kullback-leibler':
-            normalize(matrix)
-        print(f'Computing correlations with method {method}...')
-        correlations = compute_correlations(matrix, method)
-        if n_jobs == 1:
-            pvalues, bs_samples = compute_pvals(matrix, n_iter, method)
-        else:
-            pvalues, bs_samples = compute_pvals_parallel(matrix, n_iter, method, n_jobs)
+            with timer('Normalizing...'):
+                normalize(matrix)
+        with timer(f'Computing correlations with method {method}...'):
+            correlations = compute_correlations(matrix, method)
+        with timer(f'Computing p-values for method {method} using {n_jobs} processes...'):
+            if n_jobs == 1:
+                pvalues, bs_samples = compute_pvals(matrix, n_iter, method)
+            else:
+                pvalues, bs_samples = compute_pvals_parallel(matrix, n_iter, method, n_jobs)
 
         left_interval, right_interval = np.percentile(
             np.array(bs_samples),
@@ -93,11 +109,13 @@ def infer_network(
             'confidence_interval': (left_interval, right_interval)
         }
     if len(results) > 1:
-        pvals = merge_p_values(*[result['pvalues'] for result in results.values()])
+        with timer('Merging p values...'):
+            pvals = merge_p_values(*[result['pvalues'] for result in results.values()])
     else:
         pvals = next(iter(results.values()))['pvalues']
     if bh:
-        pvals = benjamini_hochberg(pvals)
+        with timer('Performing Benjamini-Hochberg correction...'):
+            pvals = benjamini_hochberg(pvals)
     rejected_edges = Counter()
     accepted_edges = Counter()
     for method, result in results.items():
@@ -135,7 +153,7 @@ if __name__ == '__main__':
     otu_table = OTUTable.from_tsv(inp, sample_rows=False)
     start_time = time.time()
     methods = ['kullback-leibler', 'spearman']
-    network = infer_network(otu_table, 100, methods, 0.05, int(n_threads))
+    network = infer_network(otu_table, 1000, methods, 0.05, int(n_threads))
     print('Took', time.time() - start_time)
     with open(output, 'w') as handle:
         writer = csv.writer(handle, delimiter='\t')
