@@ -71,6 +71,11 @@ def get_diameter(graph: nx.Graph) -> Union[int, float]:
     return nx.diameter(graph)
 
 
+@return_if_except(nx.NetworkXError, np.nan)
+def get_avg_path_length(graph: nx.Graph) -> Union[int, float]:
+    return nx.average_shortest_path_length(graph)
+
+
 METRIC_TO_FUN: Dict[str, Callable[[nx.Graph], Union[float, int]]] = {
     'Number of nodes': lambda graph: graph.number_of_nodes(),
     'Number of edges': lambda graph: graph.number_of_edges(),
@@ -82,7 +87,7 @@ METRIC_TO_FUN: Dict[str, Callable[[nx.Graph], Union[float, int]]] = {
     'Network radius': get_radius,
     'Network diameter': get_diameter,
     'Average clustering coefficient': lambda graph: nx.average_clustering(graph),
-    'Average path length': lambda graph: nx.average_shortest_path_length(graph),
+    'Average path length': get_avg_path_length,
 }
 HEADER = list(METRIC_TO_FUN.keys())
 
