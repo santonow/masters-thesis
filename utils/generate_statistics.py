@@ -79,8 +79,8 @@ METRIC_TO_FUN: Dict[str, Callable[[nx.Graph], Union[float, int]]] = {
     'Number of connected components': lambda graph: nx.number_connected_components(graph),
     'Mean network centrality': lambda graph: np.mean(list(nx.degree_centrality(graph).values())),
     'Mean network betweeness': lambda graph: np.mean(list(nx.betweenness_centrality(graph).values())),
-    'Network radius': lambda graph: nx.radius(graph),
-    'Network diameter': lambda graph: nx.diameter(graph),
+    'Network radius': get_radius,
+    'Network diameter': get_diameter,
     'Average clustering coefficient': lambda graph: nx.average_clustering(graph),
     'Average path length': lambda graph: nx.average_shortest_path_length(graph),
 }
