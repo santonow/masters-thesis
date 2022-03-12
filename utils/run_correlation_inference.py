@@ -85,9 +85,12 @@ def infer_network(
         methods = [methods]
     results = dict()
     for method in methods:
-        with timer(f'Computing clr transformation for method {method}...'):
-            matrix = clr(otu_table.matrix.T)
         if method != 'kullback-leibler':
+            with timer(f'Computing clr transformation for method {method}...'):
+                matrix = clr(otu_table.matrix.T)
+        else:
+            matrix = otu_table.matrix.T
+        if method == 'kullback-leibler':
             with timer('Normalizing...'):
                 normalize(matrix)
         with timer(f'Computing correlations with method {method}...'):
@@ -153,7 +156,7 @@ if __name__ == '__main__':
     otu_table = OTUTable.from_tsv(inp, sample_rows=False)
     start_time = time.time()
     methods = ['kullback-leibler', 'spearman']
-    network = infer_network(otu_table, 1000, methods, 0.05, int(n_threads))
+    network = infer_network(otu_table, 10, methods, 0.05, int(n_threads))
     print('Took', time.time() - start_time)
     with open(output, 'w') as handle:
         writer = csv.writer(handle, delimiter='\t')

@@ -224,12 +224,10 @@ def clr(matrix: np.ndarray):
     matrix = matrix + SMALL_FLOAT
     geom_mean = np.zeros(matrix.shape[0])
     for i in range(matrix.shape[0]):
-        geom_mean[i] = np.prod(matrix[i, :]) ** (1/matrix.shape[1])
+        geom_mean[i] = np.exp(np.mean(np.log(matrix[i, :])))
     for i in range(matrix.shape[0]):
         matrix[i, :] /= geom_mean[i]
     return np.log(matrix)
-
-
 
 
 def matrix_iter(matrix: np.ndarray):

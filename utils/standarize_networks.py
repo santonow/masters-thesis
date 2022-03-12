@@ -31,8 +31,14 @@ def filter_graph(graph: nx.Graph, n_edges: int) -> nx.Graph:
             pos_edges += 1
         if attrs['sign'] == '-':
             neg_edges += 1
-    pos_to_keep = int(n_edges * pos_edges / (pos_edges + neg_edges))
-    neg_to_keep = int(n_edges * neg_edges / (pos_edges + neg_edges))
+    try:
+        pos_to_keep = int(n_edges * pos_edges / (pos_edges + neg_edges))
+        neg_to_keep = int(n_edges * neg_edges / (pos_edges + neg_edges))
+    except ZeroDivisionError as e:
+        print(pos_edges, neg_edges)
+        print(graph)
+        pos_to_keep = n_edges
+        neg_to_keep = 0
     print(f'Keeping {pos_to_keep} positive edges and {neg_to_keep} negative edges')
     for head, tail, attrs in sorted(
         graph.edges(data=True), key=lambda x: x[2]['weight'], reverse=True
@@ -85,7 +91,7 @@ def read_fastspar(fname):
         row_names = next(reader)[1:]
         for left, *row in reader:
             for right, value in zip(row_names, row):
-                if float(value) > config['threshold'] and left != right:
+                if abs(float(value)) > config['threshold'] and left != right:
                     graph.add_edge(left, right, weight=float(value))
     return graph
 

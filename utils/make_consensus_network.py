@@ -22,7 +22,7 @@ edges_with_sources = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 for dirname, networks in group_by_program(snakemake.input[:-1]).items():
     for i, network in enumerate(networks):
         for head, tail, attrs in network.edges(data=True):
-            edges_with_sources[(head, tail)][dirname][i].append((attrs['weight'], attrs['sign']))
+            edges_with_sources[tuple(sorted((head, tail)))][dirname][i].append((attrs['weight'], attrs['sign']))
 
 for edge, edges_per_method in edges_with_sources.items():
     mean_weights = []
