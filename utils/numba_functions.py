@@ -1,3 +1,4 @@
+import os
 from operator import itemgetter
 from typing import Optional, Tuple, Union
 from random import sample
@@ -6,9 +7,15 @@ import numpy as np
 from numba import njit
 from scipy.stats import chi2
 
+njit = lambda x: x
+
 
 MIN_DOUBLE = np.finfo(np.float64).min
 SMALL_FLOAT = 0.0000001
+
+
+def write_matrix(dirname: str, matrix: np.ndarray, name: str):
+    np.save(os.path.join(dirname, name), matrix)
 
 
 @njit
@@ -161,7 +168,9 @@ def permute(
                 permutation_variances[j, i] = permutation_variances[i, j]
 
 
-def reboot(matrix: np.ndarray, n_iter: int, method: str, renorm=True, samples_for_ci=100):
+def reboot(
+    matrix: np.ndarray, n_iter: int, method: str, tmp_dir: str, proc_num: int, renorm=False, samples_for_ci=100,
+):
     """Perform ReBoot procedure."""
     # for determining a confidence interval
     samples = []
@@ -170,14 +179,14 @@ def reboot(matrix: np.ndarray, n_iter: int, method: str, renorm=True, samples_fo
     bs_means = np.zeros((matrix.shape[1], matrix.shape[1]))
     bs_variances = np.zeros((matrix.shape[1], matrix.shape[1]))
     for i in range(n_iter):
-        try:
-            bs_matrix = bootstrap(matrix)
-        except Exception as e:
-            print('bootstrap')
-            raise e
+        bs_matrix = bootstrap(matrix)
+        write_matrix(tmp_dir, bs_matrix, f'bootstrap_matrix{proc_num}_{i}')
         bs_correlations = compute_correlations(bs_matrix, method)
+        write_matrix(tmp_dir, bs_correlations, f'bootstrap_correlations{proc_num}_{i}')
         samples.extend(sample([x[0] for x in matrix_iter(bs_correlations)], samples_for_ci))
         update_mean_variance(bs_correlations, bs_means, bs_variances, i + 1)
+        write_matrix(tmp_dir, bs_means, f'bs_means{proc_num}_{i}')
+        write_matrix(tmp_dir, bs_variances, f'bs_variances{proc_num}_{i}')
 
     # permutations
     permutation_means = np.zeros((matrix.shape[1], matrix.shape[1]))
@@ -185,18 +194,15 @@ def reboot(matrix: np.ndarray, n_iter: int, method: str, renorm=True, samples_fo
     if method == 'kullback-leibler':
         renorm = False
     for i in range(n_iter):
-        try:
-            permute(matrix, permutation_means, permutation_variances, method, i + 1, renorm)
-        except Exception as e:
-            print('perm')
-            raise e
+        permute(matrix, permutation_means, permutation_variances, method, i + 1, renorm)
+        write_matrix(tmp_dir, permutation_means, f'permutation_means{proc_num}_{i}')
+        write_matrix(tmp_dir, permutation_variances, f'permutation_variances{proc_num}_{i}')
     return permutation_means, permutation_variances, bs_means, bs_variances, n_iter, samples
 
 
-@njit
-def compute_pvals(matrix: np.ndarray, n_iter: int, method: str):
+def compute_pvals(matrix: np.ndarray, n_iter: int, method: str, tmp_dir: str):
     permutation_means, permutation_variances, bs_means, bs_variances, count, bs_samples = reboot(
-        matrix, n_iter, method
+        matrix, n_iter, method, proc_num=0, tmp_dir=tmp_dir
     )
     permutation_variances /= count
     bs_variances = bs_variances / count

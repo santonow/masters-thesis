@@ -1,4 +1,5 @@
 import csv
+import os
 import sys
 from collections import Counter
 from typing import List, Union
@@ -10,7 +11,7 @@ import networkx as nx
 
 from occurence_table import OTUTable
 from numba_functions import compute_correlations, compute_p_value, reboot, compute_pvals, \
-    update_mean_variance_parallel, normalize, benjamini_hochberg, merge_p_values, clr
+    update_mean_variance_parallel, normalize, benjamini_hochberg, merge_p_values, clr, write_matrix
 
 
 class timer:
@@ -31,9 +32,9 @@ def delayed(fun):
 
 
 @delayed
-def permuter(matrix: np.ndarray, proc_iters: int, method: str):
+def permuter(matrix: np.ndarray, proc_iters: int, method: str, proc_num: int, tmp_dir: str):
     try:
-        result = reboot(matrix, proc_iters, method)
+        result = reboot(matrix, proc_iters, method, proc_num=proc_num, tmp_dir=tmp_dir)
     except Exception as e:
         print(matrix.shape, proc_iters, method)
         print(e)
@@ -41,14 +42,17 @@ def permuter(matrix: np.ndarray, proc_iters: int, method: str):
     return result
 
 
-def compute_pvals_parallel(matrix: np.ndarray, n_iter: int, method: str, n_jobs: int):
+def compute_pvals_parallel(matrix: np.ndarray, n_iter: int, method: str, n_jobs: int, tmp_dir: str):
     def prepare_proc_iters(n_iter, n_jobs):
         iters = [n_iter // n_jobs for _ in range(n_jobs)]
         iters[-1] += n_iter - sum(iters)
         return iters
 
     executor = Parallel(n_jobs=n_jobs, verbose=10)
-    tasks = (permuter(matrix, proc_iters, method) for proc_iters in prepare_proc_iters(n_iter, n_jobs))
+    tasks = (
+        permuter(matrix, proc_iters, method, i, tmp_dir)
+        for i, proc_iters in enumerate(prepare_proc_iters(n_iter, n_jobs))
+    )
 
     current_count = 0
     perm_means = np.zeros((matrix.shape[1], matrix.shape[1]))
@@ -76,10 +80,11 @@ def compute_pvals_parallel(matrix: np.ndarray, n_iter: int, method: str, n_jobs:
 
 
 def infer_network(
-    otu_table: OTUTable, n_iter: int, methods: Union[str, List[str]],
-    p_value_threshold: float = 0.05, n_jobs: int = 4, bh: bool = True, confidence_interval=0.95
+    otu_table: OTUTable, n_iter: int, methods: Union[str, List[str]], tmp_dir: str,
+    p_value_threshold: float = 0.05, n_jobs: int = 4, bh: bool = True, confidence_interval=0.95,
 ) -> nx.Graph:
     network = nx.Graph()
+    os.makedirs(tmp_dir, exist_ok=True)
     indice_to_id = {i: _id for i, _id in enumerate(otu_table.ids(axis='observation'))}
     if isinstance(methods, str):
         methods = [methods]
@@ -95,12 +100,13 @@ def infer_network(
                 normalize(matrix)
         with timer(f'Computing correlations with method {method}...'):
             correlations = compute_correlations(matrix, method)
+        write_matrix(tmp_dir, correlations, f'correlations_{method}')
         with timer(f'Computing p-values for method {method} using {n_jobs} processes...'):
             if n_jobs == 1:
-                pvalues, bs_samples = compute_pvals(matrix, n_iter, method)
+                pvalues, bs_samples = compute_pvals(matrix, n_iter, method, tmp_dir)
             else:
                 pvalues, bs_samples = compute_pvals_parallel(matrix, n_iter, method, n_jobs)
-
+        write_matrix(tmp_dir, pvalues, f'pvalues_{method}')
         left_interval, right_interval = np.percentile(
             np.array(bs_samples),
             [100 * (1 - confidence_interval) / 2, 100 * (1 - (1 - confidence_interval) / 2)]
@@ -119,6 +125,7 @@ def infer_network(
     if bh:
         with timer('Performing Benjamini-Hochberg correction...'):
             pvals = benjamini_hochberg(pvals)
+    write_matrix(tmp_dir, pvals, 'final_pvals')
     rejected_edges = Counter()
     accepted_edges = Counter()
     for method, result in results.items():
@@ -156,7 +163,11 @@ if __name__ == '__main__':
     otu_table = OTUTable.from_tsv(inp, sample_rows=False)
     start_time = time.time()
     methods = ['kullback-leibler', 'spearman']
-    network = infer_network(otu_table, 10, methods, 0.05, int(n_threads))
+    network = infer_network(
+        otu_table=otu_table, n_iter=2, methods=methods,
+        p_value_threshold=0.05, n_jobs=int(n_threads),
+        tmp_dir=os.path.join(os.path.split(inp)[0], 'temp_dir')
+    )
     print('Took', time.time() - start_time)
     with open(output, 'w') as handle:
         writer = csv.writer(handle, delimiter='\t')
