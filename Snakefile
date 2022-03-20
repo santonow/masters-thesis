@@ -250,7 +250,7 @@ rule conet_infer:
     conda:
         "envs/custom_conet.yaml"
     shell:
-        """python utils/run_correlation_inference.py {input} {threads} {output} >> {log}"""
+        """python -u utils/run_correlation_inference.py {input} {threads} {output} >> {log}"""
 
 
 def prepare_network_files(wrapper=lambda x: x, input=True):
@@ -340,11 +340,12 @@ def prepare_inputs_for_vis():
 def prepare_for_vis_file():
     d = dict()
     for method_name, _ in METHODS_EXTENSIONS:
-        dirname = os.path.join("data",f"{method_name}_results")
         i = 0
-        for fname in os.listdir(dirname):
-            if fname.startswith("proper") and os.path.isfile(os.path.join(dirname, fname)):
-                d[f"{method_name}_{i}"] = os.path.join(dirname, fname)
+        for field in config[f"{method_name}_configs"]:
+            if field.startswith("config"):
+                d[f"{method_name}_{i}"] = os.path.join(
+                    "data", f"{method_name}_results", f"proper_{field}.edgelist"
+                )
                 i += 1
     d["consensus"] = "data/consensus_network.edgelist"
     d["trophic_groups"] = "data/trophic_groups.xlsx"
@@ -381,25 +382,25 @@ rule generate_stats:
     script:
         "utils/generate_statistics.py"
 
-
-def prepare_outputs_for_vis():
-    outputs = dict()
-    for inp in prepare_network_files(make_graph_name, input=False)[2]:
-        base, name = os.path.split(inp)
-        outputs[inp] = os.path.join(base, 'vis_' + name + '.png')
-    return outputs
-
-rule generate_plots:
-    input:
-        *prepare_network_files(make_graph_name, input=False)[2],
-        "data/consensus_network"
-    output:
-        **{"data/consensus_network": "data/vis_consensus_network.png"},
-        **prepare_outputs_for_vis(),
-
-    conda:
-        "envs/phyloseq.yaml"
-    script:
-        "utils/plot/make_visualizations.R"
+#
+# def prepare_outputs_for_vis():
+#     outputs = dict()
+#     for inp in prepare_network_files(make_graph_name, input=False)[2]:
+#         base, name = os.path.split(inp)
+#         outputs[inp] = os.path.join(base, 'vis_' + name + '.png')
+#     return outputs
+# #
+# # rule generate_plots:
+# #     input:
+# #         *prepare_network_files(make_graph_name, input=False)[2],
+# #         "data/consensus_network"
+# #     output:
+# #         **{"data/consensus_network": "data/vis_consensus_network.png"},
+# #         **prepare_outputs_for_vis(),
+# #
+# #     conda:
+# #         "envs/phyloseq.yaml"
+# #     script:
+# #         "utils/plot/make_visualizations.R"
 
 
