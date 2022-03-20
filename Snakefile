@@ -150,6 +150,18 @@ rule get_known_relations:
     script:
         "utils/collect_known_interactions.py"
 
+rule get_lima_mendez_relations:
+    input:
+        "data/taxonomy.tsv"
+    output:
+        "data/W7.xlsx",
+        "data/Database_W5_OTU_occurences.tsv",
+        "data/lima-mendez_relations.tsv"
+    conda:
+        "envs/file_manipulation.yaml"
+    script:
+        "utils/collect_lima_mendez_interactions.py"
+
 rule fastspar_infer:
     priority: 0
     input:
@@ -232,7 +244,7 @@ rule conet_infer:
         **make_outputs("conet", "tsv")
     log:
         "logs/conet.log"
-    threads: 4
+    threads: 8
     benchmark:
         "benchmarks/conet.benchmark"
     conda:
@@ -324,8 +336,40 @@ def prepare_inputs_for_vis():
     res["tax_table"] = "data/taxonomy.tsv"
     return res
 
+
+def prepare_for_vis_file():
+    d = dict()
+    for method_name, _ in METHODS_EXTENSIONS:
+        dirname = os.path.join("data",f"{method_name}_results")
+        i = 0
+        for fname in os.listdir(dirname):
+            if fname.startswith("proper") and os.path.isfile(os.path.join(dirname, fname)):
+                d[f"{method_name}_{i}"] = os.path.join(dirname, fname)
+                i += 1
+    d["consensus"] = "data/consensus_network.edgelist"
+    d["trophic_groups"] = "data/trophic_groups.xlsx"
+    d["taxonomy"] = "data/taxonomy.tsv"
+    return d
+
+rule generate_vis_file:
+    input:
+        **prepare_for_vis_file()
+    output:
+        "visualization/data.json"
+    conda:
+        "envs/prepare_visualization.yaml"
+    benchmark:
+        "benchmark/prepare_vis.benchmark"
+    script:
+        "utils/prepare_visualization_file.py"
+
+
 rule generate_stats:
     input:
+        "data/taxonomy.tsv",
+        "data/known_relations.tsv",
+        "data/lima-mendez_relations.tsv",
+        "data/trophic_groups.xlsx",
         *prepare_network_files(make_graph_name, input=False)[0]["networks"],
         "data/consensus_network.edgelist"
     output:

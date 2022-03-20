@@ -1,0 +1,23 @@
+{
+  "name": "sigma-example-load-gexf-file",
+  "version": "1.0.0",
+  "description": "This example loads a GEXF graph file and displays it with a few classic interactive features.",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && browserify index.js -o build/bundle.js",
+    "prestart": "npm run build",
+    "start": "ws --spa index.html"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "browserify": "^17.0.0",
+    "local-web-server": "^5.2.0",
+    "util": "^0.12.4",
+    "graphology": "^0.23.0",
+    "graphology-gexf": "^0.9.0",
+    "sigma": "latest"
+  },
+  "devDependencies": {
+    "typescript": "4.4.4"
+  }
+}

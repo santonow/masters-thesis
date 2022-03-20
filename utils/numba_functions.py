@@ -1,13 +1,13 @@
 import os
 from operator import itemgetter
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Union, Iterable, Any, Set
 from random import sample
 
 import numpy as np
 from numba import njit
 from scipy.stats import chi2
 
-njit = lambda x: x
+# njit = lambda x: x
 
 
 MIN_DOUBLE = np.finfo(np.float64).min
@@ -81,13 +81,20 @@ def compute_correlation(x: np.ndarray, y: np.ndarray, method: str) -> float:
 
 
 @njit
-def compute_correlations(matrix: np.ndarray, method: str) -> np.ndarray:
+def compute_correlations(
+    matrix: np.ndarray, method: str, xs: Optional[np.ndarray] = None, ys: Optional[np.ndarray] = None
+) -> np.ndarray:
     correlations = np.zeros((matrix.shape[1], matrix.shape[1]))
-    for i in range(matrix.shape[1]):
-        for j in range(matrix.shape[1]):
-            if i < j and i != j:
-                correlations[i, j] = compute_correlation(matrix[:, i], matrix[:, j], method)
-                correlations[j, i] = correlations[i, j]
+    if xs is not None and ys is not None:
+        for i, j in zip(xs, ys):
+            correlations[i, j] = compute_correlation(matrix[:, i], matrix[:, j], method)
+            correlations[j, i] = correlations[i, j]
+    else:
+        for i in range(matrix.shape[1]):
+            for j in range(matrix.shape[1]):
+                if i < j and i != j:
+                    correlations[i, j] = compute_correlation(matrix[:, i], matrix[:, j], method)
+                    correlations[j, i] = correlations[i, j]
     return correlations
 
 
@@ -145,7 +152,7 @@ def normalize(matrix: np.ndarray):
 @njit
 def permute(
     matrix: np.ndarray, permutation_means: np.ndarray, permutation_variances: np.ndarray,
-    method: str, iteration: int, renorm: bool = True
+    method: str, iteration: int, xs: Optional[np.ndarray] = None, ys: Optional[np.ndarray] = None, renorm: bool = True,
 ):
     diffs_matrix = np.zeros(matrix.shape)
     if renorm:
@@ -154,39 +161,50 @@ def permute(
             for j in range(matrix.shape[1]):
                 diffs_matrix[i, j] = s - matrix[i, j]
 
-    for i in range(matrix.shape[1]):
-        for j in range(matrix.shape[1]):
-            if i < j and i != j:
-                col1 = np.random.permutation(matrix[:, i])
-                col2 = np.random.permutation(matrix[:, j])
-                if renorm:
-                    col1 /= (diffs_matrix[:, i] + col1)
-                    col2 /= (diffs_matrix[:, j] + col2)
-                corr = compute_correlation(col1, col2, method)
-                update_mean_variance(corr, permutation_means, permutation_variances, iteration, (i, j))
-                permutation_means[j, i] = permutation_means[i, j]
-                permutation_variances[j, i] = permutation_variances[i, j]
+    if xs is not None and ys is not None:
+        for i, j in zip(xs, ys):
+            col1 = np.random.permutation(matrix[:, i])
+            col2 = np.random.permutation(matrix[:, j])
+            if renorm:
+                col1 /= (diffs_matrix[:, i] + col1)
+                col2 /= (diffs_matrix[:, j] + col2)
+            corr = compute_correlation(col1, col2, method)
+            update_mean_variance(corr, permutation_means, permutation_variances, iteration, (i, j))
+            permutation_means[j, i] = permutation_means[i, j]
+            permutation_variances[j, i] = permutation_variances[i, j]
+    else:
+        for i in range(matrix.shape[1]):
+            for j in range(matrix.shape[1]):
+                if i < j and i != j:
+                    col1 = np.random.permutation(matrix[:, i])
+                    col2 = np.random.permutation(matrix[:, j])
+                    if renorm:
+                        col1 /= (diffs_matrix[:, i] + col1)
+                        col2 /= (diffs_matrix[:, j] + col2)
+                    corr = compute_correlation(col1, col2, method)
+                    update_mean_variance(corr, permutation_means, permutation_variances, iteration, (i, j))
+                    permutation_means[j, i] = permutation_means[i, j]
+                    permutation_variances[j, i] = permutation_variances[i, j]
 
 
 def reboot(
-    matrix: np.ndarray, n_iter: int, method: str, tmp_dir: str, proc_num: int, renorm=False, samples_for_ci=100,
+    matrix: np.ndarray, n_iter: int, method: str,
+    indices: Set[Tuple[int, int]], renorm=False, samples_for_ci=100,
 ):
     """Perform ReBoot procedure."""
     # for determining a confidence interval
     samples = []
+    xs = np.array([x[0] for x in sorted(indices)], dtype=np.int)
+    ys = np.array([x[1] for x in sorted(indices)], dtype=np.int)
 
     # bootstrap
     bs_means = np.zeros((matrix.shape[1], matrix.shape[1]))
     bs_variances = np.zeros((matrix.shape[1], matrix.shape[1]))
     for i in range(n_iter):
         bs_matrix = bootstrap(matrix)
-        write_matrix(tmp_dir, bs_matrix, f'bootstrap_matrix{proc_num}_{i}')
-        bs_correlations = compute_correlations(bs_matrix, method)
-        write_matrix(tmp_dir, bs_correlations, f'bootstrap_correlations{proc_num}_{i}')
-        samples.extend(sample([x[0] for x in matrix_iter(bs_correlations)], samples_for_ci))
+        bs_correlations = compute_correlations(bs_matrix, method, xs, ys)
+        samples.extend(sample([x[0] for x in matrix_iter(bs_correlations, indices)], samples_for_ci))
         update_mean_variance(bs_correlations, bs_means, bs_variances, i + 1)
-        write_matrix(tmp_dir, bs_means, f'bs_means{proc_num}_{i}')
-        write_matrix(tmp_dir, bs_variances, f'bs_variances{proc_num}_{i}')
 
     # permutations
     permutation_means = np.zeros((matrix.shape[1], matrix.shape[1]))
@@ -194,15 +212,13 @@ def reboot(
     if method == 'kullback-leibler':
         renorm = False
     for i in range(n_iter):
-        permute(matrix, permutation_means, permutation_variances, method, i + 1, renorm)
-        write_matrix(tmp_dir, permutation_means, f'permutation_means{proc_num}_{i}')
-        write_matrix(tmp_dir, permutation_variances, f'permutation_variances{proc_num}_{i}')
+        permute(matrix, permutation_means, permutation_variances, method, i + 1, xs, ys, renorm)
     return permutation_means, permutation_variances, bs_means, bs_variances, n_iter, samples
 
 
-def compute_pvals(matrix: np.ndarray, n_iter: int, method: str, tmp_dir: str):
+def compute_pvals(matrix: np.ndarray, n_iter: int, method: str, indices):
     permutation_means, permutation_variances, bs_means, bs_variances, count, bs_samples = reboot(
-        matrix, n_iter, method, proc_num=0, tmp_dir=tmp_dir
+        matrix, n_iter, method, indices=indices
     )
     permutation_variances /= count
     bs_variances = bs_variances / count
@@ -236,27 +252,44 @@ def clr(matrix: np.ndarray):
     return np.log(matrix)
 
 
-def matrix_iter(matrix: np.ndarray):
+def matrix_iter(
+    matrix: np.ndarray, indices: Optional[Set[Tuple[int, int]]] = None
+) -> Iterable[Tuple[Any, int, int]]:
+    if indices is None:
+        all_indices = True
+    else:
+        all_indices = False
     for i in range(matrix.shape[0]):
         for j in range(matrix.shape[1]):
-            if i != j and i < j:
+            if i != j and i < j and (all_indices or (i, j) in indices or (j, i) in indices):
                 yield matrix[i, j], i, j
 
 
 @njit
-def fisher_merge(pvals_1: np.ndarray, pvals_2: np.ndarray) -> np.ndarray:
+def fisher_merge(pvals_1: np.ndarray, pvals_2: np.ndarray, xs: np.ndarray, ys: np.ndarray) -> np.ndarray:
     merged_pvals = np.empty_like(pvals_1)
-    for i in range(pvals_1.shape[0]):
-        for j in range(pvals_1.shape[1]):
-            if i < j and i != j:
-                merged_pval = 0
-                for m in [pvals_1, pvals_2]:
-                    pval = m[i, j]
-                    if pval == 0.0:
-                        pval = MIN_DOUBLE
-                    merged_pval += np.log(pval)
-                merged_pvals[i, j] = merged_pval
-                merged_pvals[j, i] = merged_pval
+    if xs is not None and ys is not None:
+        for i, j in zip(xs, ys):
+            merged_pval = 0
+            for m in [pvals_1, pvals_2]:
+                pval = m[i, j]
+                if pval == 0.0:
+                    pval = MIN_DOUBLE
+                merged_pval += np.log(pval)
+            merged_pvals[i, j] = merged_pval
+            merged_pvals[j, i] = merged_pval
+    else:
+        for i in range(pvals_1.shape[0]):
+            for j in range(pvals_1.shape[0]):
+                if i < j and i != j:
+                    merged_pval = 0
+                    for m in [pvals_1, pvals_2]:
+                        pval = m[i, j]
+                        if pval == 0.0:
+                            pval = MIN_DOUBLE
+                        merged_pval += np.log(pval)
+                    merged_pvals[i, j] = merged_pval
+                    merged_pvals[j, i] = merged_pval
     return (-2.0) * merged_pvals
 
 
@@ -270,15 +303,18 @@ def chi_square_p_vals(m: np.ndarray, dof) -> np.ndarray:
     return result
 
 
-def merge_p_values(pvals_1, pvals_2):
+def merge_p_values(pvals_1, pvals_2, indices):
     """Brown's method of merging correlations.
 
     Adapted from CONet code.
     """
     # first, get an approx correction factor (which is a modified covariance of two p-value sets) and dof
     measure_number = 2
-    pvals_1_vec = np.array([pval for pval, _, _ in matrix_iter(pvals_1)], dtype=np.float64)
-    pvals_2_vec = np.array([pval for pval, _, _ in matrix_iter(pvals_2)], dtype=np.float64)
+    pvals_1_vec = np.array([pval for pval, _, _ in matrix_iter(pvals_1, indices)], dtype=np.float64)
+    pvals_2_vec = np.array([pval for pval, _, _ in matrix_iter(pvals_2, indices)], dtype=np.float64)
+    print(len(indices))
+    print(pvals_1_vec)
+    print(pvals_2_vec)
     corrcoeff = compute_correlation(pvals_1_vec, pvals_2_vec, method='pearson')
 
     # Brown's approx formula
@@ -292,17 +328,25 @@ def merge_p_values(pvals_1, pvals_2):
 
     dof = (2 * ((measure_number * 2) ** 2)) / variance
     correction_factor = variance / (2.0 * 2 * measure_number)
-
+    print(dof, correction_factor, variance, corrcoeff)
     # compute corrected p-values
 
-    chi_square = fisher_merge(pvals_1, pvals_2) / correction_factor
+    xs = np.array([x[0] for x in sorted(indices)], dtype=np.int)
+    ys = np.array([x[1] for x in sorted(indices)], dtype=np.int)
+
+    chi_square = fisher_merge(pvals_1, pvals_2, xs, ys) / correction_factor
     return chi_square_p_vals(chi_square, dof)
 
 
-def benjamini_hochberg(matrix: np.ndarray):
+def benjamini_hochberg(matrix: np.ndarray, indices):
     corrected = np.empty_like(matrix)
     n_pvals = matrix.shape[0] * matrix.shape[1]
-    for i, (pval, row, col) in enumerate(sorted(matrix_iter(matrix), key=itemgetter(0))):
+    for i, (pval, row, col) in enumerate(sorted(matrix_iter(matrix, indices), key=itemgetter(0))):
         corrected[row, col] = pval * n_pvals / (i + 1)
         corrected[col, row] = corrected[row, col]
     return corrected
+
+
+if __name__ == '__main__':
+    matrix = np.array([[1, 2, 3], [3, 4, 5], [6, 7, 2]])
+    print(compute_correlations(matrix, 'spearman', {(1, 2)}))
