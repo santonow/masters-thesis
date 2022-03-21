@@ -5,7 +5,7 @@ channels:
 dependencies:
   # for some reason conda doesn't download dependencies of libraries that a pip library depents on
   # so need to specify all cartoGRAPHs' dependencies manually
-  - biopython=1.78
+  - pip=21.3.1
   - attrs=21.4.0
   - biopython=1.79
   - certifi=2021.10.8
