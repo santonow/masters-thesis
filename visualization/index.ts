@@ -18,7 +18,7 @@ graph.import(data)
 let sources: Set<string> = new Set<string>();
 
 
-graph.forEachEdge((edge, source, target) => {
+graph.forEachEdge((edge: string) => {
   const sign: string = graph.getEdgeAttribute(edge, "sign");
   if (sign === "+") {
     graph.setEdgeAttribute(edge, "color", "#99c2ff");

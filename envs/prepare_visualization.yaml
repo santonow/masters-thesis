@@ -49,3 +49,5 @@ dependencies:
       - jupyter-core==4.9.2
       - scipy==1.5.4
       - umap-learn==0.5.2
+      - shapely==1.8.1.post1
+      - openpyxl==3.0.9

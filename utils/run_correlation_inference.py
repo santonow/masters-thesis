@@ -34,7 +34,7 @@ class CoNet:
         self, otu_table: OTUTable, n_iter: int = 1000,
         methods: Tuple[str] = ('spearman', 'kullback-leibler'),
         p_value_threshold: float = 0.05, n_jobs: int = 4, bh: bool = True,
-        confidence_interval: float = 0.95, n_initial_edges: int = 1000000
+        confidence_interval: float = 0.95, n_initial_edges: int = 10000000
     ):
         self.otu_table = OTUTable
         self.indice_to_id = {
@@ -149,32 +149,21 @@ class CoNet:
 
     @staticmethod
     def select_edges(matrix: np.ndarray, method: str, max_edges=100000) -> Tuple[Set[Tuple[int, int]], int, int]:
+        pos_edges = [
+            (val, i, j) for val, i, j in sorted(matrix_iter(matrix), key=lambda x: x[0])[:max_edges // 2]
+        ]
+        neg_edges = [
+            (val, i, j) for val, i, j in
+            sorted(matrix_iter(matrix), key=lambda x: x[0], reverse=True)[:max_edges // 2]
+        ]
         if method == 'kullback-leibler':
-            pos_edges = [
-                (val, i, j) for val, i, j in sorted(matrix_iter(matrix), key=lambda x: x[0])[:max_edges // 2]
-            ]
-            neg_edges = [
-                (val, i, j) for val, i, j in
-                sorted(matrix_iter(matrix), key=lambda x: x[0], reverse=True)[:max_edges // 2]
-            ]
-            print(pos_edges[:10])
-            print(neg_edges[:10])
-
             left = max(x[0] for x in pos_edges)
             right = min(x[0] for x in neg_edges)
-            return set([(i, j) for _, i, j in pos_edges] + [(i, j) for _, i, j in neg_edges]), left, right
         else:
-            left = 0
-            right = 0
-            edges = set()
-            for val, i, j in sorted(matrix_iter(matrix), key=lambda x: abs(x[0]), reverse=True):
-                if len(edges) < max_edges and (j, i) not in edges:
-                    edges.add((i, j))
-                    if val < 0 and val < left:
-                        left = val
-                    if val > 0 and val > right:
-                        right = val
-            return edges, left, right
+            left = max(x[0] for x in neg_edges)
+            right = min(x[0] for x in pos_edges)
+
+        return set([(i, j) for _, i, j in pos_edges] + [(i, j) for _, i, j in neg_edges]), left, right
 
     def compute_pvals_parallel(self, matrix: np.ndarray, method: str):
         def prepare_proc_iters(n_iter, n_jobs):
