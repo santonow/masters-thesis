@@ -194,6 +194,6 @@ if __name__ == "__main__":
     )
     print(table._sample_metadata)
     table.to_hdf5("/Users/ant/masters-thesis/amplicon_station_test.biom")
-    table = OTUTable.from_hdf5("/Users/ant/masters-thesis/amplicon_station_test.biom")
+    table = OTUTable.from_hdf5("/amplicon_station_test.biom")
     print(table.table.head())
     print(table._sample_metadata)

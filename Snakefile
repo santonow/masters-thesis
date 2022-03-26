@@ -87,7 +87,7 @@ class PathHandler:
     def standarized_graphs(self):
         filepaths = []
         for filepath in self.raw_graphs:
-            filepath.append(make_graph_name(filepath))
+            filepaths.append(make_graph_name(filepath))
         return filepaths
 
     def make_outputs(self, method, only_files=False):
@@ -142,6 +142,25 @@ class PathHandler:
 
 
 path_handler = PathHandler()
+
+
+onstart:
+    import shutil
+    from pathlib import Path
+
+    path = Path().absolute()
+    occurence_table_path = path / "scripts/data_preparation/occurence_table.py"
+    target_path = path / "custom_conet/occurence_table.py"
+    shutil.copy(occurence_table_path, target_path)
+
+
+onsuccess:
+    import os
+    from pathlib import Path
+
+    path = Path().absolute()
+    target_path = path / "custom_conet/occurence_table.py"
+    os.remove(target_path)
 
 
 rule download_pr2:

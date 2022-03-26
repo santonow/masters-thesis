@@ -8,7 +8,7 @@ from joblib import delayed as delayed
 import numpy as np
 import networkx as nx
 
-from scripts.occurence_table import OTUTable
+from occurence_table import OTUTable
 from custom_conet.functions import (
     compute_correlations,
     compute_p_value,

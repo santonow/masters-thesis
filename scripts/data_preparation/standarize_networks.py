@@ -3,7 +3,11 @@ import csv
 
 import networkx as nx
 
-from scripts.utils import make_graph_name
+
+def make_graph_name(filepath):
+    dirname, fname = os.path.split(filepath)
+    fname = os.path.splitext(fname)[0] + ".edgelist"
+    return os.path.join(dirname, "standardized_" + fname)
 
 
 RANKS = [

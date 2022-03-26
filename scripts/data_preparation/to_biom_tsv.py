@@ -1,4 +1,4 @@
-from scripts.occurence_table import OTUTable
+from occurence_table import OTUTable
 
 
 if snakemake.config["input"]["format"] == "tsv":
