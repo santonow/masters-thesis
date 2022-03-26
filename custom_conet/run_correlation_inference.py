@@ -9,7 +9,7 @@ import numpy as np
 import networkx as nx
 
 from occurence_table import OTUTable
-from custom_conet.functions import (
+from functions import (
     compute_correlations,
     compute_p_value,
     reboot,
