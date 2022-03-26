@@ -211,8 +211,7 @@ rule standarize_input:
     input:
         **path_handler.raw_files,
     output:
-        path_handler.standarized_input,
-        path_handler.standarized_metadata_input,
+        *list(path_handler.standarized_files.values())
     conda:
         "envs/file_manipulation.yaml"
     script:
