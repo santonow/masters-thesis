@@ -1,0 +1,19 @@
+[tool.black]
+line-length = 88
+target-version = ['py39']
+exclude = '''
+^/(
+  (
+      \.snakemake
+    | blast
+    | \.mypy_cache
+    | \.settings
+    | visualization
+    | \.mypy_cache
+    | conet
+    | sigma.js
+    | taxonMatrices
+    | arbsrc_18696
+  )/
+)
+'''

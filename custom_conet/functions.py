@@ -7,8 +7,6 @@ import numpy as np
 from numba import njit
 from scipy.stats import chi2
 
-# njit = lambda x: x
-
 
 MIN_DOUBLE = np.finfo(np.float64).min
 SMALL_FLOAT = 0.0000001
@@ -55,7 +53,7 @@ def braycurtis(x: np.ndarray, y: np.ndarray) -> float:
     for _x, _y in zip(x, y):
         dist += min(_x, _y)
         total += _x + _y
-    return 1. - (2. * dist) / total
+    return 1.0 - (2.0 * dist) / total
 
 
 @njit
@@ -65,24 +63,29 @@ def kullback_leibler(x: np.ndarray, y: np.ndarray) -> float:
     new_y = y + 1e-09
     new_x /= sum(new_x)
     new_y /= sum(new_y)
-    return float(np.sum(new_x * np.log(new_x / new_y))) + float(np.sum(new_y * np.log(new_y / new_x)))
+    return float(np.sum(new_x * np.log(new_x / new_y))) + float(
+        np.sum(new_y * np.log(new_y / new_x))
+    )
 
 
 @njit
 def compute_correlation(x: np.ndarray, y: np.ndarray, method: str) -> float:
-    if method == 'pearson':
+    if method == "pearson":
         return pearson(x, y)
-    if method == 'spearman':
+    if method == "spearman":
         return spearman(x, y)
-    if method == 'bray-curtis':
+    if method == "bray-curtis":
         return braycurtis(x, y)
-    if method == 'kullback-leibler':
+    if method == "kullback-leibler":
         return kullback_leibler(x, y)
 
 
 @njit
 def compute_correlations(
-    matrix: np.ndarray, method: str, xs: Optional[np.ndarray] = None, ys: Optional[np.ndarray] = None
+    matrix: np.ndarray,
+    method: str,
+    xs: Optional[np.ndarray] = None,
+    ys: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     correlations = np.zeros((matrix.shape[1], matrix.shape[1]))
     if xs is not None and ys is not None:
@@ -93,7 +96,9 @@ def compute_correlations(
         for i in range(matrix.shape[1]):
             for j in range(matrix.shape[1]):
                 if i < j and i != j:
-                    correlations[i, j] = compute_correlation(matrix[:, i], matrix[:, j], method)
+                    correlations[i, j] = compute_correlation(
+                        matrix[:, i], matrix[:, j], method
+                    )
                     correlations[j, i] = correlations[i, j]
     return correlations
 
@@ -111,8 +116,11 @@ def bootstrap(matrix: np.ndarray) -> np.ndarray:
 
 @njit
 def update_mean_variance(
-    new_value: Union[np.ndarray, float], means: np.ndarray, variances: np.ndarray,
-    count: int, indices: Optional[Tuple[int, int]] = None
+    new_value: Union[np.ndarray, float],
+    means: np.ndarray,
+    variances: np.ndarray,
+    count: int,
+    indices: Optional[Tuple[int, int]] = None,
 ) -> None:
     """Welford's method for computing variance.
 
@@ -131,13 +139,15 @@ def update_mean_variance(
 
 @njit
 def compute_p_value(
-    permutation_means: np.ndarray, permutation_variances: np.ndarray,
-    bootstrap_means: np.ndarray, bootstrap_variances: np.ndarray,
+    permutation_means: np.ndarray,
+    permutation_variances: np.ndarray,
+    bootstrap_means: np.ndarray,
+    bootstrap_variances: np.ndarray,
 ) -> np.ndarray:
     z_scores = (bootstrap_means - permutation_means) / np.sqrt(
         0.5 * (permutation_variances + bootstrap_variances)
     )
-    p_values = 2*(np.exp(-(-np.abs(z_scores))**2) / 2) / np.sqrt(2*np.pi)
+    p_values = 2 * (np.exp(-((-np.abs(z_scores)) ** 2)) / 2) / np.sqrt(2 * np.pi)
     return p_values
 
 
@@ -151,8 +161,14 @@ def normalize(matrix: np.ndarray):
 
 @njit
 def permute(
-    matrix: np.ndarray, permutation_means: np.ndarray, permutation_variances: np.ndarray,
-    method: str, iteration: int, xs: Optional[np.ndarray] = None, ys: Optional[np.ndarray] = None, renorm: bool = True,
+    matrix: np.ndarray,
+    permutation_means: np.ndarray,
+    permutation_variances: np.ndarray,
+    method: str,
+    iteration: int,
+    xs: Optional[np.ndarray] = None,
+    ys: Optional[np.ndarray] = None,
+    renorm: bool = True,
 ):
     diffs_matrix = np.zeros(matrix.shape)
     if renorm:
@@ -166,10 +182,12 @@ def permute(
             col1 = np.random.permutation(matrix[:, i])
             col2 = np.random.permutation(matrix[:, j])
             if renorm:
-                col1 /= (diffs_matrix[:, i] + col1)
-                col2 /= (diffs_matrix[:, j] + col2)
+                col1 /= diffs_matrix[:, i] + col1
+                col2 /= diffs_matrix[:, j] + col2
             corr = compute_correlation(col1, col2, method)
-            update_mean_variance(corr, permutation_means, permutation_variances, iteration, (i, j))
+            update_mean_variance(
+                corr, permutation_means, permutation_variances, iteration, (i, j)
+            )
             permutation_means[j, i] = permutation_means[i, j]
             permutation_variances[j, i] = permutation_variances[i, j]
     else:
@@ -179,17 +197,27 @@ def permute(
                     col1 = np.random.permutation(matrix[:, i])
                     col2 = np.random.permutation(matrix[:, j])
                     if renorm:
-                        col1 /= (diffs_matrix[:, i] + col1)
-                        col2 /= (diffs_matrix[:, j] + col2)
+                        col1 /= diffs_matrix[:, i] + col1
+                        col2 /= diffs_matrix[:, j] + col2
                     corr = compute_correlation(col1, col2, method)
-                    update_mean_variance(corr, permutation_means, permutation_variances, iteration, (i, j))
+                    update_mean_variance(
+                        corr,
+                        permutation_means,
+                        permutation_variances,
+                        iteration,
+                        (i, j),
+                    )
                     permutation_means[j, i] = permutation_means[i, j]
                     permutation_variances[j, i] = permutation_variances[i, j]
 
 
 def reboot(
-    matrix: np.ndarray, n_iter: int, method: str,
-    indices: Set[Tuple[int, int]], renorm=False, samples_for_ci=100,
+    matrix: np.ndarray,
+    n_iter: int,
+    method: str,
+    indices: Set[Tuple[int, int]],
+    renorm=False,
+    samples_for_ci=100,
 ):
     """Perform ReBoot procedure."""
     # for determining a confidence interval
@@ -203,23 +231,48 @@ def reboot(
     for i in range(n_iter):
         bs_matrix = bootstrap(matrix)
         bs_correlations = compute_correlations(bs_matrix, method, xs, ys)
-        samples.extend(sample([x[0] for x in matrix_iter(bs_correlations, indices)], samples_for_ci))
+        samples.extend(
+            sample(
+                [x[0] for x in matrix_iter(bs_correlations, indices)], samples_for_ci
+            )
+        )
         update_mean_variance(bs_correlations, bs_means, bs_variances, i + 1)
 
     # permutations
     permutation_means = np.zeros((matrix.shape[1], matrix.shape[1]))
     permutation_variances = np.zeros((matrix.shape[1], matrix.shape[1]))
-    if method == 'kullback-leibler':
+    if method == "kullback-leibler":
         renorm = False
     for i in range(n_iter):
-        permute(matrix, permutation_means, permutation_variances, method, i + 1, xs, ys, renorm)
-    return permutation_means, permutation_variances, bs_means, bs_variances, n_iter, samples
+        permute(
+            matrix,
+            permutation_means,
+            permutation_variances,
+            method,
+            i + 1,
+            xs,
+            ys,
+            renorm,
+        )
+    return (
+        permutation_means,
+        permutation_variances,
+        bs_means,
+        bs_variances,
+        n_iter,
+        samples,
+    )
 
 
 def compute_pvals(matrix: np.ndarray, n_iter: int, method: str, indices):
-    permutation_means, permutation_variances, bs_means, bs_variances, count, bs_samples = reboot(
-        matrix, n_iter, method, indices=indices
-    )
+    (
+        permutation_means,
+        permutation_variances,
+        bs_means,
+        bs_variances,
+        count,
+        bs_samples,
+    ) = reboot(matrix, n_iter, method, indices=indices)
     permutation_variances /= count
     bs_variances = bs_variances / count
     pvals = compute_p_value(
@@ -231,8 +284,12 @@ def compute_pvals(matrix: np.ndarray, n_iter: int, method: str, indices):
 
 @njit
 def update_mean_variance_parallel(
-    prev_n: int, prev_means: np.ndarray, prev_vars: np.ndarray,
-    new_n: int, new_means: np.ndarray, new_vars: np.ndarray
+    prev_n: int,
+    prev_means: np.ndarray,
+    prev_vars: np.ndarray,
+    new_n: int,
+    new_means: np.ndarray,
+    new_vars: np.ndarray,
 ):
     n = prev_n + new_n
     delta = new_means - prev_means
@@ -261,12 +318,18 @@ def matrix_iter(
         all_indices = False
     for i in range(matrix.shape[0]):
         for j in range(matrix.shape[1]):
-            if i != j and i < j and (all_indices or (i, j) in indices or (j, i) in indices):
+            if (
+                i != j
+                and i < j
+                and (all_indices or (i, j) in indices or (j, i) in indices)
+            ):
                 yield matrix[i, j], i, j
 
 
 @njit
-def fisher_merge(pvals_1: np.ndarray, pvals_2: np.ndarray, xs: np.ndarray, ys: np.ndarray) -> np.ndarray:
+def fisher_merge(
+    pvals_1: np.ndarray, pvals_2: np.ndarray, xs: np.ndarray, ys: np.ndarray
+) -> np.ndarray:
     merged_pvals = np.empty_like(pvals_1)
     if xs is not None and ys is not None:
         for i, j in zip(xs, ys):
@@ -310,12 +373,16 @@ def merge_p_values(pvals_1, pvals_2, indices):
     """
     # first, get an approx correction factor (which is a modified covariance of two p-value sets) and dof
     measure_number = 2
-    pvals_1_vec = np.array([pval for pval, _, _ in matrix_iter(pvals_1, indices)], dtype=np.float64)
-    pvals_2_vec = np.array([pval for pval, _, _ in matrix_iter(pvals_2, indices)], dtype=np.float64)
+    pvals_1_vec = np.array(
+        [pval for pval, _, _ in matrix_iter(pvals_1, indices)], dtype=np.float64
+    )
+    pvals_2_vec = np.array(
+        [pval for pval, _, _ in matrix_iter(pvals_2, indices)], dtype=np.float64
+    )
     print(len(indices))
     print(pvals_1_vec)
     print(pvals_2_vec)
-    corrcoeff = compute_correlation(pvals_1_vec, pvals_2_vec, method='pearson')
+    corrcoeff = compute_correlation(pvals_1_vec, pvals_2_vec, method="pearson")
 
     # Brown's approx formula
     if corrcoeff > 0:
@@ -341,12 +408,9 @@ def merge_p_values(pvals_1, pvals_2, indices):
 def benjamini_hochberg(matrix: np.ndarray, indices):
     corrected = np.empty_like(matrix)
     n_pvals = matrix.shape[0] * matrix.shape[1]
-    for i, (pval, row, col) in enumerate(sorted(matrix_iter(matrix, indices), key=itemgetter(0))):
+    for i, (pval, row, col) in enumerate(
+        sorted(matrix_iter(matrix, indices), key=itemgetter(0))
+    ):
         corrected[row, col] = pval * n_pvals / (i + 1)
         corrected[col, row] = corrected[row, col]
     return corrected
-
-
-if __name__ == '__main__':
-    matrix = np.array([[1, 2, 3], [3, 4, 5], [6, 7, 2]])
-    print(compute_correlations(matrix, 'spearman', {(1, 2)}))

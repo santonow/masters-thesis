@@ -23,7 +23,7 @@ for (config.name in names(configs)) {
     config[["distance"]] <- dists
 
     # adapted from phyloseq source code to allow for bigger networks to be processed by igraph
-    # see this andswer: https://stackoverflow.com/a/58203731/12931685
+    # see this answer: https://stackoverflow.com/a/58203731/12931685
     if( attributes(dists)$Size != ntaxa(otu.table) ){
       stop("ntaxa(physeq) does not match size of dist object in distance")
     }
@@ -46,7 +46,6 @@ for (config.name in names(configs)) {
       )
     }
     write_graph(net, file = snakemake@output[[config.name]], format = "ncol", weights = "weight")
-    # write.table(as_data_frame(net), file=snakemake@output[[config.name]], sep = "\t", )
   }
 }
 
