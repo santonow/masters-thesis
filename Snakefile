@@ -46,7 +46,11 @@ METHODS_EXTENSIONS = [
 class PathHandler:
     def __init__(self):
         self.raw_input = config["input"]["filename"]
-        self.metadata_input = config["input"].get("metadata_fname", None)
+        self.metadata_input = (
+            config["input"].get("metadata_fname", None)
+            if config["input"]["metadata"]
+            else None
+        )
         self.tax_file = "data/taxonomy.tsv"
         self.method2ext = {
             method: extension for method, extension in METHODS_EXTENSIONS
