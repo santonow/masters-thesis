@@ -17,6 +17,17 @@ graph.import(data)
 
 let sources: Set<string> = new Set<string>();
 
+let node2Network: { [node: string]: Set<string> } = {};
+graph.forEachNode((node: string) => {
+  node2Network[node] = new Set<string>();
+})
+
+graph.forEachEdge((edge, attributes, source, target, sourceAttributes, targetAttributes) => {
+  attributes.sources.forEach((network: string) => {
+    node2Network[source].add(network)
+    node2Network[target].add(network)
+  })
+})
 
 graph.forEachEdge((edge: string) => {
   const sign: string = graph.getEdgeAttribute(edge, "sign");
@@ -132,7 +143,8 @@ function setSearchQuery(query: string) {
 function setHoveredNode(node?: string) {
   if (node) {
     state.hoveredNode = node;
-    state.hoveredNeighbors = new Set(graph.neighbors(node));
+    state.hoveredNeighbors = neighborsInSelectedNetworks(node);
+    console.log(node2Network[node]);
   } else {
     state.hoveredNode = undefined;
     state.hoveredNeighbors = undefined;
@@ -188,12 +200,23 @@ Object.entries(sourceButtons).forEach(([source, button]) => {
   })
 });
 
-
-function showNeighborNodeLabel(node: string) {
-  return state.hoveredNeighbors
-      && state.selectedNode
-      && state.hoveredNeighbors.has(node)
-      && !graph.getEdgeAttribute(graph.edge(state.selectedNode, node), "hidden");
+function neighborsInSelectedNetworks(node: string) {
+  let neighbors: Set<string> = new Set<string>();
+  if (node) {
+    graph.neighbors(node).forEach((neighbor: string) => {
+      let edge: string = "";
+      if (graph.hasEdge(node, neighbor)) {
+        edge = graph.edge(node, neighbor);
+      } else {
+        edge = graph.edge(neighbor, node);
+      }
+      const edge_sources: Set<string> = new Set<string>(graph.getEdgeAttribute(edge, "sources"));
+      if (showEdge(state.selectedNetworks, edge_sources)) {
+        neighbors.add(neighbor)
+      }
+    })
+  }
+  return neighbors
 }
 
 // Render nodes accordingly to the internal state:
@@ -203,16 +226,19 @@ function showNeighborNodeLabel(node: string) {
 renderer.setSetting("nodeReducer", (node, data) => {
   const res: Partial<NodeDisplayData> = { ...data };
 
-  if (state.hoveredNeighbors && !state.hoveredNeighbors.has(node) && state.hoveredNode !== node) {
-    res.label = "";
-    res.color = "#f6f6f6";
-  }
 
-  if (state.selectedNode === node || showNeighborNodeLabel(node)) {
+  if (state.hoveredNeighbors && state.hoveredNeighbors.has(node)) {
     res.highlighted = true;
+  }
+  if (!showEdge(state.selectedNetworks, node2Network[node])) {
+    res.hidden = true;
+  }
+  if (state.hoveredNeighbors && !state.hoveredNeighbors.has(node) && state.hoveredNode !== node) {
+    res.hidden = true;
   } else if (state.suggestions && !state.suggestions.has(node)) {
-    res.label = "";
-    res.color = "#f6f6f6";
+    res.hidden = true;
+    // res.label = "";
+    // res.color = "#f6f6f6";
   }
 
   return res;
@@ -240,13 +266,11 @@ renderer.setSetting("edgeReducer", (edge, data) => {
 
   if (!showEdge(state.selectedNetworks, new Set<string>(graph.getEdgeAttribute(edge, "sources")))) {
     res.hidden = true
-  } else if (
-      state.hoveredNode && !graph.hasExtremity(edge, state.hoveredNode)
-  ) {
+  }
+  if (state.hoveredNode && !graph.hasExtremity(edge, state.hoveredNode)) {
     res.hidden = true;
-  } else if (
-      state.suggestions && (!state.suggestions.has(graph.source(edge)) || !state.suggestions.has(graph.target(edge)))
-  ) {
+  }
+  if (state.suggestions && (!state.suggestions.has(graph.source(edge)) || !state.suggestions.has(graph.target(edge)))) {
     res.hidden = true;
   }
   return res;
