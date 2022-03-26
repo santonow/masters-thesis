@@ -118,7 +118,7 @@ class PathHandler:
 
     @property
     def standarized_files(self):
-        d = {"base": self.standarized_input, "tax": self.tax_file}
+        d = {"base": self.standarized_input}
         if self.standarized_metadata_input:
             d["meta"] = self.standarized_metadata_input
         return d
@@ -220,10 +220,10 @@ rule standarize_input:
 
 rule get_known_relations:
     input:
-        path_handler.tax_file,
+        path_handler.tax_file
     output:
         "data/pida_v1.08.zip",
-        path_handler.known_relations,
+        path_handler.known_relations
     conda:
         "envs/file_manipulation.yaml"
     script:
@@ -232,11 +232,11 @@ rule get_known_relations:
 
 rule get_lima_mendez_relations:
     input:
-        "data/taxonomy.tsv",
+        path_handler.tax_file
     output:
         "data/W7.xlsx",
         "data/Database_W5_OTU_occurences.tsv",
-        path_handler.lima_mendez_relations,
+        path_handler.lima_mendez_relations
     conda:
         "envs/file_manipulation.yaml"
     script:
@@ -246,9 +246,9 @@ rule get_lima_mendez_relations:
 rule fastspar_infer:
     priority: 0
     input:
-        path_handler.standarized_input,
+        path_handler.standarized_input
     output:
-        **path_handler.make_outputs("fastspar"),
+        **path_handler.make_outputs("fastspar")
     log:
         "logs/fastspar.log",
     benchmark:
@@ -262,9 +262,9 @@ rule fastspar_infer:
 
 rule SpiecEasi_infer:
     input:
-        **path_handler.standarized_files,
+        **path_handler.standarized_files
     output:
-        **path_handler.make_outputs("spieceasi"),
+        **path_handler.make_outputs("spieceasi")
     threads: 8
     log:
         "logs/spieceasi.log",
@@ -278,9 +278,9 @@ rule SpiecEasi_infer:
 
 rule make_biom:
     input:
-        **path_handler.standarized_files,
+        **path_handler.standarized_files
     output:
-        path_handler.standarized_biom_input,
+        path_handler.standarized_biom_input
     conda:
         "envs/file_manipulation.yaml"
     script:
@@ -289,9 +289,9 @@ rule make_biom:
 
 rule flashweave_infer:
     input:
-        *path_handler.flashweave_input,
+        *path_handler.flashweave_input
     output:
-        **path_handler.make_outputs("flashweave"),
+        **path_handler.make_outputs("flashweave")
     threads: 5
     log:
         "logs/flashweave.log",
@@ -305,9 +305,9 @@ rule flashweave_infer:
 
 rule phyloseq_infer:
     input:
-        **path_handler.standarized_files,
+        **path_handler.standarized_files
     output:
-        **path_handler.make_outputs("phyloseq"),
+        **path_handler.make_outputs("phyloseq")
     log:
         "logs/phyloseq.log",
     benchmark:
@@ -320,9 +320,9 @@ rule phyloseq_infer:
 
 rule conet_infer:
     input:
-        path_handler.standarized_input,
+        path_handler.standarized_input
     output:
-        *path_handler.make_outputs("conet", only_files=True),
+        *path_handler.make_outputs("conet", only_files=True)
     log:
         "logs/conet.log",
     threads: 8
@@ -336,9 +336,9 @@ rule conet_infer:
 
 rule standarize_networks:
     input:
-        **{"networks": path_handler.raw_graphs, "tax_table": path_handler.tax_file},
+        **{"networks": path_handler.raw_graphs, "tax_table": path_handler.tax_file}
     output:
-        *path_handler.standarized_graphs,
+        *path_handler.standarized_graphs
     log:
         "logs/standarize_networks.log",
     conda:
@@ -351,9 +351,9 @@ rule standarize_networks:
 
 rule make_consensus_network:
     input:
-        *path_handler.standarized_graphs,
+        *path_handler.standarized_graphs
     output:
-        path_handler.consensus_network_path,
+        path_handler.consensus_network_path
     log:
         "logs/make_consensus_network.log",
     conda:
