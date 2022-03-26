@@ -78,7 +78,7 @@ class PathHandler:
 
     @property
     def standarized_biom_input(self):
-        return os.path.splitext(self.standarized_input[0] + ".biom")
+        return os.path.splitext(self.standarized_input)[0] + ".biom"
 
     @property
     def raw_graphs(self):
