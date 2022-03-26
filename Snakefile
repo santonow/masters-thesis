@@ -36,7 +36,7 @@ def get_pr2_url():
 
 METHODS_EXTENSIONS = [
     ("fastspar", ""),
-    # ("spieceasi", "edgelist"),
+    ("spieceasi", "edgelist"),
     ("flashweave", "edgelist"),
     ("phyloseq", "edgelist"),
     ("conet", "tsv"),
@@ -197,9 +197,9 @@ rule run_blast:
 
 rule get_taxonomy:
     input:
-        path_handler.blast_results,
+        path_handler.blast_results
     output:
-        path_handler.tax_file,
+        path_handler.tax_file
     conda:
         "envs/blast.yaml"
     threads: 8
@@ -209,7 +209,7 @@ rule get_taxonomy:
 
 rule standarize_input:
     input:
-        **path_handler.raw_files,
+        **path_handler.raw_files
     output:
         *list(path_handler.standarized_files.values())
     conda:

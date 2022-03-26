@@ -11,23 +11,24 @@ import Graph from "graphology";
 
 import data from "./data.json";
 
-
 const graph = new Graph();
-graph.import(data)
+graph.import(data);
 
 let sources: Set<string> = new Set<string>();
 
 let node2Network: { [node: string]: Set<string> } = {};
 graph.forEachNode((node: string) => {
   node2Network[node] = new Set<string>();
-})
+});
 
-graph.forEachEdge((edge, attributes, source, target, sourceAttributes, targetAttributes) => {
-  attributes.sources.forEach((network: string) => {
-    node2Network[source].add(network)
-    node2Network[target].add(network)
-  })
-})
+graph.forEachEdge(
+  (edge, attributes, source, target, sourceAttributes, targetAttributes) => {
+    attributes.sources.forEach((network: string) => {
+      node2Network[source].add(network);
+      node2Network[target].add(network);
+    });
+  }
+);
 
 graph.forEachEdge((edge: string) => {
   const sign: string = graph.getEdgeAttribute(edge, "sign");
@@ -40,19 +41,18 @@ graph.forEachEdge((edge: string) => {
   }
   graph.getEdgeAttributes(edge).sources.forEach((source: string) => {
     sources.add(source);
-  })
-})
+  });
+});
 
 const buttons = document.getElementById("buttons");
 let sourceButtons: Record<string, HTMLButtonElement> = {};
-sources.forEach( (source: string) => {
+sources.forEach((source: string) => {
   const button = document.createElement("button") as HTMLButtonElement;
   button.id = source;
   button.textContent = source;
   buttons?.appendChild(button);
   sourceButtons[source] = button;
-})
-
+});
 
 function setClicked(button: HTMLButtonElement) {
   button.style.background = "#d4d4d4";
@@ -62,12 +62,13 @@ function setUnclicked(button: HTMLButtonElement) {
   button.style.background = "#ffffff";
 }
 
-
 // Retrieve some useful DOM elements:
 const container = document.getElementById("sigma-container") as HTMLElement;
 
 const searchInput = document.getElementById("search-input") as HTMLInputElement;
-const searchSuggestions = document.getElementById("suggestions") as HTMLDataListElement;
+const searchSuggestions = document.getElementById(
+  "suggestions"
+) as HTMLDataListElement;
 
 // Instantiate sigma:
 const renderer = new Sigma(graph, container, {
@@ -90,12 +91,19 @@ interface State {
   // State derived from edge visualization options.
   selectedNetworks?: Set<string>;
 }
-const state: State = { searchQuery: "", selectedNetworks: new Set<string>(["consensus"])};
+
+const state: State = {
+  searchQuery: "",
+  selectedNetworks: new Set<string>(["consensus"]),
+};
 
 // Feed the datalist autocomplete values:
 searchSuggestions.innerHTML = graph
   .nodes()
-  .map((node) => `<option value="${graph.getNodeAttribute(node, "label")}"></option>`)
+  .map(
+    (node) =>
+      `<option value="${graph.getNodeAttribute(node, "label")}"></option>`
+  )
   .join("\n");
 
 // Actions:
@@ -108,7 +116,10 @@ function setSearchQuery(query: string) {
     const lcQuery = query.toLowerCase();
     const suggestions = graph
       .nodes()
-      .map((n) => ({ id: n, label: graph.getNodeAttribute(n, "label") as string }))
+      .map((n) => ({
+        id: n,
+        label: graph.getNodeAttribute(n, "label") as string,
+      }))
       .filter(({ label }) => label.toLowerCase().includes(lcQuery));
 
     // If we have a single perfect match, them we remove the suggestions, and
@@ -119,7 +130,9 @@ function setSearchQuery(query: string) {
       state.suggestions = undefined;
 
       // Move the camera to center it on the selected node:
-      const nodePosition = renderer.getNodeDisplayData(state.selectedNode) as Coordinates;
+      const nodePosition = renderer.getNodeDisplayData(
+        state.selectedNode
+      ) as Coordinates;
       renderer.getCamera().animate(nodePosition, {
         duration: 500,
       });
@@ -197,7 +210,7 @@ Object.entries(sourceButtons).forEach(([source, button]) => {
     setClickedState(button, source);
     console.log(`Clicked ${source}`);
     console.log(state.selectedNetworks);
-  })
+  });
 });
 
 function neighborsInSelectedNetworks(node: string) {
@@ -210,13 +223,15 @@ function neighborsInSelectedNetworks(node: string) {
       } else {
         edge = graph.edge(neighbor, node);
       }
-      const edge_sources: Set<string> = new Set<string>(graph.getEdgeAttribute(edge, "sources"));
+      const edge_sources: Set<string> = new Set<string>(
+        graph.getEdgeAttribute(edge, "sources")
+      );
       if (showEdge(state.selectedNetworks, edge_sources)) {
-        neighbors.add(neighbor)
+        neighbors.add(neighbor);
       }
-    })
+    });
   }
-  return neighbors
+  return neighbors;
 }
 
 // Render nodes accordingly to the internal state:
@@ -226,14 +241,17 @@ function neighborsInSelectedNetworks(node: string) {
 renderer.setSetting("nodeReducer", (node, data) => {
   const res: Partial<NodeDisplayData> = { ...data };
 
-
   if (state.hoveredNeighbors && state.hoveredNeighbors.has(node)) {
     res.highlighted = true;
   }
   if (!showEdge(state.selectedNetworks, node2Network[node])) {
     res.hidden = true;
   }
-  if (state.hoveredNeighbors && !state.hoveredNeighbors.has(node) && state.hoveredNode !== node) {
+  if (
+    state.hoveredNeighbors &&
+    !state.hoveredNeighbors.has(node) &&
+    state.hoveredNode !== node
+  ) {
     res.hidden = true;
   } else if (state.suggestions && !state.suggestions.has(node)) {
     res.hidden = true;
@@ -245,7 +263,7 @@ renderer.setSetting("nodeReducer", (node, data) => {
 });
 
 function showEdge(set: Set<string>, subset: Set<string>) {
-  if ((subset.has("consensus") && set.has("consensus"))) {
+  if (subset.has("consensus") && set.has("consensus")) {
     return true;
   }
   for (let elem of subset.values()) {
@@ -264,13 +282,22 @@ function showEdge(set: Set<string>, subset: Set<string>) {
 renderer.setSetting("edgeReducer", (edge, data) => {
   const res: Partial<EdgeDisplayData> = { ...data };
 
-  if (!showEdge(state.selectedNetworks, new Set<string>(graph.getEdgeAttribute(edge, "sources")))) {
-    res.hidden = true
+  if (
+    !showEdge(
+      state.selectedNetworks,
+      new Set<string>(graph.getEdgeAttribute(edge, "sources"))
+    )
+  ) {
+    res.hidden = true;
   }
   if (state.hoveredNode && !graph.hasExtremity(edge, state.hoveredNode)) {
     res.hidden = true;
   }
-  if (state.suggestions && (!state.suggestions.has(graph.source(edge)) || !state.suggestions.has(graph.target(edge)))) {
+  if (
+    state.suggestions &&
+    (!state.suggestions.has(graph.source(edge)) ||
+      !state.suggestions.has(graph.target(edge)))
+  ) {
     res.hidden = true;
   }
   return res;
@@ -278,7 +305,6 @@ renderer.setSetting("edgeReducer", (edge, data) => {
 
 const camera = renderer.getCamera();
 
-
 camera.setState({
-    angle: 0.3
-})
+  angle: 0.3,
+});
