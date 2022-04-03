@@ -36,9 +36,9 @@ def get_pr2_url():
 
 METHODS_EXTENSIONS = [
     ("fastspar", ""),
-    ("spieceasi", "edgelist"),
+    # ("spieceasi", "edgelist"),
     ("flashweave", "edgelist"),
-    ("phyloseq", "edgelist"),
+    # ("phyloseq", "edgelist"),
     ("conet", "tsv"),
 ]
 
@@ -172,6 +172,8 @@ rule download_pr2:
         path_handler.pr2_path,
     conda:
         "envs/file_manipulation.yaml"
+    benchmark:
+        "benchmarks/download_pr2.benchmark"
     shell:
         f"""wget {get_pr2_url()} -O {path_handler.pr2_path}.gz
         gunzip {path_handler.pr2_path}.gz
@@ -186,6 +188,8 @@ rule run_blast:
         path_handler.blast_results,
     conda:
         "envs/blast.yaml"
+    benchmark:
+        "benchmarks/run_blast.benchmark"
     threads: 8
     shell:
         """makeblastdb -in {input[0]} -title pr2 -dbtype nucl -out data/blast/pr2
@@ -202,6 +206,8 @@ rule get_taxonomy:
         path_handler.tax_file
     conda:
         "envs/blast.yaml"
+    benchmark:
+        "benchmarks/get_taxonomy.benchmark"
     threads: 8
     shell:
         """python scripts/data_preparation/parse_blast_results.py {input} {threads} {output}"""
@@ -214,6 +220,8 @@ rule standarize_input:
         *list(path_handler.standarized_files.values())
     conda:
         "envs/file_manipulation.yaml"
+    benchmark:
+        "benchmarks/standarize_input.benchmark"
     script:
         "scripts/data_preparation/to_biom_tsv.py"
 
@@ -226,6 +234,8 @@ rule get_known_relations:
         path_handler.known_relations
     conda:
         "envs/file_manipulation.yaml"
+    benchmark:
+        "benchmarks/get_known_relations.benchmark"
     script:
         "scripts/data_collection/collect_known_interactions.py"
 
@@ -239,6 +249,8 @@ rule get_lima_mendez_relations:
         path_handler.lima_mendez_relations
     conda:
         "envs/file_manipulation.yaml"
+    benchmark:
+        "benchmarks/get_lima_mendez_relations.benchmark"
     script:
         "scripts/data_collection/collect_lima_mendez_interactions.py"
 
@@ -260,20 +272,20 @@ rule fastspar_infer:
         "scripts/method_runners/call_fastspar.py"
 
 
-rule SpiecEasi_infer:
-    input:
-        **path_handler.standarized_files
-    output:
-        **path_handler.make_outputs("spieceasi")
-    threads: 8
-    log:
-        "logs/spieceasi.log",
-    benchmark:
-        "benchmarks/spieceasi.benchmark"
-    conda:
-        "envs/spieceasi.yaml"
-    script:
-        "scripts/method_runners/call_SpiecEasi.R"
+# rule SpiecEasi_infer:
+#     input:
+#         **path_handler.standarized_files
+#     output:
+#         **path_handler.make_outputs("spieceasi")
+#     threads: 8
+#     log:
+#         "logs/spieceasi.log",
+#     benchmark:
+#         "benchmarks/spieceasi.benchmark"
+#     conda:
+#         "envs/spieceasi.yaml"
+#     script:
+#         "scripts/method_runners/call_SpiecEasi.R"
 
 
 rule make_biom:
@@ -283,6 +295,8 @@ rule make_biom:
         path_handler.standarized_biom_input
     conda:
         "envs/file_manipulation.yaml"
+    benchmark:
+        "benchmarks/make_biom.benchmark"
     script:
         "scripts/data_preparation/make_biom.py"
 
@@ -303,19 +317,19 @@ rule flashweave_infer:
         "scripts/method_runners/call_flashweave.jl"
 
 
-rule phyloseq_infer:
-    input:
-        **path_handler.standarized_files
-    output:
-        **path_handler.make_outputs("phyloseq")
-    log:
-        "logs/phyloseq.log",
-    benchmark:
-        "benchmarks/phyloseq.benchmark"
-    conda:
-        "envs/phyloseq.yaml"
-    script:
-        "scripts/method_runners/call_phyloseq.R"
+# rule phyloseq_infer:
+#     input:
+#         **path_handler.standarized_files
+#     output:
+#         **path_handler.make_outputs("phyloseq")
+#     log:
+#         "logs/phyloseq.log",
+#     benchmark:
+#         "benchmarks/phyloseq.benchmark"
+#     conda:
+#         "envs/phyloseq.yaml"
+#     script:
+#         "scripts/method_runners/call_phyloseq.R"
 
 
 rule conet_infer:
@@ -359,7 +373,7 @@ rule make_consensus_network:
     conda:
         "envs/file_manipulation.yaml"
     benchmark:
-        "benchmarks/standarize_networks.benchmark"
+        "benchmarks/make_consensus_network.benchmark"
     script:
         "scripts/data_preparation/make_consensus_network.py"
 
@@ -372,7 +386,7 @@ rule generate_vis_file:
     conda:
         "envs/prepare_visualization.yaml"
     benchmark:
-        "benchmark/prepare_vis.benchmark"
+        "benchmark/generate_vis_file.benchmark"
     script:
         "scripts/prepare_visualization_file.py"
 
@@ -389,6 +403,14 @@ rule generate_stats:
         "data/stats.xlsx",
     conda:
         "envs/file_manipulation.yaml"
+    benchmark:
+        "benchmark/generate_stats.benchmark"
     threads: 3
     script:
         "scripts/generate_statistics.py"
+
+
+rule all:
+    input:
+        "data/stats.xlsx",
+        "visualization/data.json"

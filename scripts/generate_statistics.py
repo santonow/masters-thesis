@@ -356,7 +356,7 @@ def write_interactions(
             ),
             *(
                 list(tail_taxonomy)
-                + ["" for _ in range(len(RANKS) - len(head_taxonomy))]
+                + ["" for _ in range(len(RANKS) - len(tail_taxonomy))]
             ),
         ]
         handle.writerow(row, graph_name)
