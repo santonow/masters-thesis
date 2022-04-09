@@ -119,8 +119,13 @@ function setSearchQuery(query: string) {
       .map((n) => ({
         id: n,
         label: graph.getNodeAttribute(n, "label") as string,
+        lineage: graph.getNodeAttribute(n, "lineage") as Array<string>,
       }))
-      .filter(({ label }) => label.toLowerCase().includes(lcQuery));
+      .filter(
+        ({ label, lineage }) =>
+          label.toLowerCase().includes(lcQuery) ||
+          lineage.some((taxon: string) => taxon.toLowerCase().includes(lcQuery))
+      );
 
     // If we have a single perfect match, them we remove the suggestions, and
     // we consider the user has selected a node through the datalist
@@ -217,7 +222,7 @@ function neighborsInSelectedNetworks(node: string) {
   let neighbors: Set<string> = new Set<string>();
   if (node) {
     graph.neighbors(node).forEach((neighbor: string) => {
-      let edge: string = "";
+      let edge: string;
       if (graph.hasEdge(node, neighbor)) {
         edge = graph.edge(node, neighbor);
       } else {
@@ -234,6 +239,16 @@ function neighborsInSelectedNetworks(node: string) {
   return neighbors;
 }
 
+
+function showNode(selectedNetworks: Set<string>, nodeSources: Set<string>) {
+  for (let elem of nodeSources.values()) {
+    if (selectedNetworks.has(elem)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // Render nodes accordingly to the internal state:
 // 1. If a node is selected, it is highlighted
 // 2. If there is query, all non-matching nodes are greyed
@@ -244,7 +259,7 @@ renderer.setSetting("nodeReducer", (node, data) => {
   if (state.hoveredNeighbors && state.hoveredNeighbors.has(node)) {
     res.highlighted = true;
   }
-  if (!showEdge(state.selectedNetworks, node2Network[node])) {
+  if (!showNode(state.selectedNetworks, node2Network[node])) {
     res.hidden = true;
   }
   if (
@@ -262,17 +277,18 @@ renderer.setSetting("nodeReducer", (node, data) => {
   return res;
 });
 
-function showEdge(set: Set<string>, subset: Set<string>) {
-  if (subset.has("consensus") && set.has("consensus")) {
+function showEdge(selectedNetworks: Set<string>, edgeSources: Set<string>) {
+  if (edgeSources.has("consensus") && selectedNetworks.has("consensus")) {
     return true;
   }
-  for (let elem of subset.values()) {
-    if (!set.has(elem)) {
+  for (let elem of edgeSources.values()) {
+    if (elem != "consensus" && !selectedNetworks.has(elem)) {
       return false;
     }
   }
   return true;
 }
+
 
 // Render edges accordingly to the internal state:
 // 1. If a node is hovered, the edge is hidden if it is not connected to the
