@@ -55,7 +55,7 @@ class PathHandler:
         self.method2ext = {
             method: extension for method, extension in METHODS_EXTENSIONS
         }
-        self.consensus_network_path = ("data/consensus_network.edgelist",)
+        self.consensus_network_path = "data/consensus_network.edgelist"
         self.trophic_groups = "data/trophic_groups.xlsx"
         self.known_relations = "data/known_relations.tsv"
         self.lima_mendez_relations = "data/lima-mendez_relations.tsv"
@@ -65,7 +65,7 @@ class PathHandler:
     @property
     def standarized_input(self):
         path, filename = os.path.split(self.raw_input)
-        return os.path.join(path, "standarized_" + filename)
+        return os.path.join(path, "data", "standarized_" + filename)
 
     @property
     def standarized_metadata_input(self):
@@ -380,7 +380,7 @@ rule make_consensus_network:
 
 rule generate_vis_file:
     input:
-        path_handler.files_for_visualization,
+        **path_handler.files_for_visualization
     output:
         "visualization/data.json",
     conda:

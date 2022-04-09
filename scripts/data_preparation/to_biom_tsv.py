@@ -17,6 +17,7 @@ if snakemake.config["input"]["format"] == "tsv":
         snakemake.output[0],
         min_tot_abundance=snakemake.config["input"].get("min_tot_abundance"),
         relative_abundance=snakemake.config["input"].get("relative_abundance"),
+        zero_threshold=snakemake.config["input"].get("zero_threshold"),
     )
 
 elif snakemake.config["input"]["format"] == "biom":
