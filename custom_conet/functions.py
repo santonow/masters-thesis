@@ -19,7 +19,7 @@ def write_matrix(dirname: str, matrix: np.ndarray, name: str):
 @njit
 def std(arr, arr_mean) -> float:
     diff = arr - arr_mean
-    return np.sqrt(np.sum(diff ** 2) / (arr.shape[0] - 1))
+    return np.sqrt(np.sum(diff**2) / (arr.shape[0] - 1))
 
 
 @njit
@@ -78,6 +78,7 @@ def compute_correlation(x: np.ndarray, y: np.ndarray, method: str) -> float:
         return braycurtis(x, y)
     if method == "kullback-leibler":
         return kullback_leibler(x, y)
+    return np.nan
 
 
 @njit
@@ -216,14 +217,14 @@ def reboot(
     n_iter: int,
     method: str,
     indices: Set[Tuple[int, int]],
-    renorm=False,
-    samples_for_ci=100,
+    renorm: bool = False,
+    samples_for_ci: int = 100,
 ):
     """Perform ReBoot procedure."""
     # for determining a confidence interval
     samples = []
-    xs = np.array([x[0] for x in sorted(indices)], dtype=np.int)
-    ys = np.array([x[1] for x in sorted(indices)], dtype=np.int)
+    xs = np.array([x[0] for x in sorted(indices)], dtype=np.int64)
+    ys = np.array([x[1] for x in sorted(indices)], dtype=np.int64)
 
     # bootstrap
     bs_means = np.zeros((matrix.shape[1], matrix.shape[1]))
@@ -293,7 +294,7 @@ def update_mean_variance_parallel(
 ):
     n = prev_n + new_n
     delta = new_means - prev_means
-    _vars = prev_vars + new_vars + (delta ** 2) * prev_n * new_n / n
+    _vars = prev_vars + new_vars + (delta**2) * prev_n * new_n / n
     means = (prev_n * prev_means + new_n * new_means) / n
     return means, _vars
 
@@ -398,8 +399,8 @@ def merge_p_values(pvals_1, pvals_2, indices):
     print(dof, correction_factor, variance, corrcoeff)
     # compute corrected p-values
 
-    xs = np.array([x[0] for x in sorted(indices)], dtype=np.int)
-    ys = np.array([x[1] for x in sorted(indices)], dtype=np.int)
+    xs = np.array([x[0] for x in sorted(indices)], dtype=np.int64)
+    ys = np.array([x[1] for x in sorted(indices)], dtype=np.int64)
 
     chi_square = fisher_merge(pvals_1, pvals_2, xs, ys) / correction_factor
     return chi_square_p_vals(chi_square, dof)

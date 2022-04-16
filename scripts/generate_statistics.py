@@ -56,7 +56,7 @@ class OpenPyXLWriter:
     def _pos_iter(self):
         i = 1
         while True:
-            yield f'{get_column_letter(i)}{self._current_pos}'
+            yield f"{get_column_letter(i)}{self._current_pos}"
             i += 1
 
     def writerow(self, row: List[Any], sheet_name: Optional[str] = None):
@@ -126,9 +126,7 @@ def read_experimental_interactions(interactions_fpath: str) -> dict:
     return interactions
 
 
-def read_predicted_interactions(
-    interactions_fpath: str, taxonomy: dict[str, tuple[str, ...]]
-) -> dict[str, dict[str, str]]:
+def read_predicted_interactions(interactions_fpath: str) -> dict[str, dict[str, str]]:
     interactions = dict()
     with open(interactions_fpath) as handle:
         reader = csv.reader(handle, delimiter="\t")
@@ -162,13 +160,14 @@ def get_prop_known_interactions(
 
 
 def get_prop_predicted_interactions(
-    graph: nx.Graph, predicted_interactions: dict[str, dict[str, str]], 
-    taxonomy: Optional[dict[str, tuple[str, ...]]]
+    graph: nx.Graph,
+    predicted_interactions: dict[str, dict[str, str]],
+    taxonomy: Optional[dict[str, tuple[str, ...]]],
 ) -> float:
     n = 0
     if taxonomy is not None:
         inferred_interactions = {
-            tuple(sorted([taxonomy[head], taxonomy[tail]])) 
+            tuple(sorted([taxonomy[head], taxonomy[tail]]))
             for head, tail in graph.edges()
         }
         interactions = {
@@ -177,8 +176,7 @@ def get_prop_predicted_interactions(
         }
     else:
         inferred_interactions = {
-            tuple(sorted([head, tail])) 
-            for head, tail in graph.edges()
+            tuple(sorted([head, tail])) for head, tail in graph.edges()
         }
         interactions = set(predicted_interactions)
     return len(inferred_interactions & interactions) / len(interactions)
@@ -272,15 +270,15 @@ def extend_metrics(
     )
     HEADER.append("Discovered known interactions")
     METRIC_TO_FUN["Discovered Lima-Mendez interactions (OTU level)"] = partial(
-        get_prop_predicted_interactions, 
+        get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
-        taxonomy=None
+        taxonomy=None,
     )
     HEADER.append("Discovered Lima-Mendez interactions (OTU level)")
     METRIC_TO_FUN["Discovered Lima-Mendez interactions (taxonomy level)"] = partial(
-        get_prop_predicted_interactions, 
+        get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
-        taxonomy=taxonomy
+        taxonomy=taxonomy,
     )
     HEADER.append("Discovered Lima-Mendez interactions (taxonomy level)")
     all_groups = sorted(set(trophic_groups.values()))
