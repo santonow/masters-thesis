@@ -56,7 +56,7 @@ class OpenPyXLWriter:
     def _pos_iter(self):
         i = 1
         while True:
-            yield get_column_letter(i)
+            yield f'{get_column_letter(i)}{self._current_pos}'
             i += 1
 
     def writerow(self, row: List[Any], sheet_name: Optional[str] = None):
