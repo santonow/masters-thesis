@@ -11,6 +11,7 @@ from math import isnan
 import networkx as nx
 import numpy as np
 import openpyxl
+from openpyxl.utils import get_column_letter
 import pandas as pd
 from joblib import Parallel, delayed
 
@@ -53,8 +54,10 @@ class OpenPyXLWriter:
         return self.row_count[self.ws.title]
 
     def _pos_iter(self):
-        for letter in string.ascii_uppercase:
-            yield f"{letter}{self._current_pos}"
+        i = 1
+        while True:
+            yield get_column_letter(i)
+            i += 1
 
     def writerow(self, row: List[Any], sheet_name: Optional[str] = None):
         if sheet_name is not None and self.ws.title != sheet_name:
