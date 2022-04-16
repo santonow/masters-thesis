@@ -1,11 +1,10 @@
 import json
 import os
-from collections import defaultdict
+from collections import defaultdict, Counter
 from functools import partial
 from itertools import combinations, chain
 from typing import Dict, Callable, Union, Any, List, Optional, Tuple
 import csv
-import string
 from math import isnan
 
 import networkx as nx
@@ -14,6 +13,7 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 import pandas as pd
 from joblib import Parallel, delayed
+from pytz import country_names
 
 
 RANKS = [
@@ -90,7 +90,7 @@ def read_trophic_groups(fpath, taxonomy):
     taxa_to_trophic_group = dict()
 
     for row in trophic_groups.to_dict(orient="records"):
-        if isinstance(row["Trophic group"], float) and isnan(row["Trophic group"]):
+        if isinstance(row["Trophic group"], float):
             continue
         else:
             for i in reversed(range(1, 6)):
@@ -126,7 +126,9 @@ def read_experimental_interactions(interactions_fpath: str) -> dict:
     return interactions
 
 
-def read_predicted_interactions(interactions_fpath: str) -> dict:
+def read_predicted_interactions(
+    interactions_fpath: str, taxonomy: dict[str, tuple[str, ...]]
+) -> dict[str, dict[str, str]]:
     interactions = dict()
     with open(interactions_fpath) as handle:
         reader = csv.reader(handle, delimiter="\t")
@@ -136,7 +138,7 @@ def read_predicted_interactions(interactions_fpath: str) -> dict:
     return interactions
 
 
-def read_taxonomy(tax_fpath: str) -> dict:
+def read_taxonomy(tax_fpath: str) -> dict[str, tuple[str, ...]]:
     taxonomy = dict()
     with open(tax_fpath) as handle:
         reader = csv.reader(handle, delimiter="\t")
@@ -146,7 +148,9 @@ def read_taxonomy(tax_fpath: str) -> dict:
     return taxonomy
 
 
-def get_prop_known_interactions(graph, known_interactions, taxonomy):
+def get_prop_known_interactions(
+    graph: nx.Graph, known_interactions, taxonomy: dict[str, tuple[str, ...]]
+) -> float:
     n = 0
     for head, tail in graph.edges():
         if head in taxonomy and tail in taxonomy:
@@ -157,12 +161,27 @@ def get_prop_known_interactions(graph, known_interactions, taxonomy):
     return n / len(known_interactions)
 
 
-def get_prop_predicted_interactions(graph, predicted_interactions):
+def get_prop_predicted_interactions(
+    graph: nx.Graph, predicted_interactions: dict[str, dict[str, str]], 
+    taxonomy: Optional[dict[str, tuple[str, ...]]]
+) -> float:
     n = 0
-    for head, tail in graph.edges():
-        if tuple(sorted([head, tail])) in predicted_interactions:
-            n += 1
-    return n / len(predicted_interactions)
+    if taxonomy is not None:
+        inferred_interactions = {
+            tuple(sorted([taxonomy[head], taxonomy[tail]])) 
+            for head, tail in graph.edges()
+        }
+        interactions = {
+            tuple(sorted([taxonomy[head], taxonomy[tail]]))
+            for head, tail in predicted_interactions
+        }
+    else:
+        inferred_interactions = {
+            tuple(sorted([head, tail])) 
+            for head, tail in graph.edges()
+        }
+        interactions = set(predicted_interactions)
+    return len(inferred_interactions & interactions) / len(interactions)
 
 
 def get_n_signs(graph: nx.Graph, sign: str) -> int:
@@ -252,10 +271,18 @@ def extend_metrics(
         taxonomy=taxonomy,
     )
     HEADER.append("Discovered known interactions")
-    METRIC_TO_FUN["Discovered Lima-Mendez interactions"] = partial(
-        get_prop_predicted_interactions, predicted_interactions=predicted_interactions
+    METRIC_TO_FUN["Discovered Lima-Mendez interactions (OTU level)"] = partial(
+        get_prop_predicted_interactions, 
+        predicted_interactions=predicted_interactions,
+        taxonomy=None
     )
-    HEADER.append("Discovered Lima-Mendez interactions")
+    HEADER.append("Discovered Lima-Mendez interactions (OTU level)")
+    METRIC_TO_FUN["Discovered Lima-Mendez interactions (taxonomy level)"] = partial(
+        get_prop_predicted_interactions, 
+        predicted_interactions=predicted_interactions,
+        taxonomy=taxonomy
+    )
+    HEADER.append("Discovered Lima-Mendez interactions (taxonomy level)")
     all_groups = sorted(set(trophic_groups.values()))
     for group1, group2 in combinations(all_groups, 2):
         METRIC_TO_FUN[f"{group1}-{group2} interactions"] = partial(
