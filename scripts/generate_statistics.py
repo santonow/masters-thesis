@@ -147,7 +147,10 @@ def read_taxonomy(tax_fpath: str) -> dict[str, tuple[str, ...]]:
 
 
 def get_prop_known_interactions(
-    graph: nx.Graph, known_interactions, taxonomy: dict[str, tuple[str, ...]]
+    graph: nx.Graph,
+    known_interactions,
+    taxonomy: dict[str, tuple[str, ...]],
+    count: bool = False,
 ) -> float:
     n = 0
     for head, tail in graph.edges():
@@ -156,13 +159,17 @@ def get_prop_known_interactions(
             tail_lineage = taxonomy[tail]
             if tuple(sorted([head_lineage, tail_lineage])) in known_interactions:
                 n += 1
-    return n / len(known_interactions)
+    if count:
+        return n
+    else:
+        return n / len(known_interactions)
 
 
 def get_prop_predicted_interactions(
     graph: nx.Graph,
     predicted_interactions: dict[str, dict[str, str]],
     taxonomy: Optional[dict[str, tuple[str, ...]]],
+    count: bool = False,
 ) -> float:
     n = 0
     if taxonomy is not None:
@@ -179,8 +186,10 @@ def get_prop_predicted_interactions(
             tuple(sorted([head, tail])) for head, tail in graph.edges()
         }
         interactions = set(predicted_interactions)
-    return len(inferred_interactions & interactions) / len(interactions)
-
+    if count:
+        return len(inferred_interactions & interactions)
+    else:
+        return len(inferred_interactions & interactions) / len(interactions)
 
 def get_n_signs(graph: nx.Graph, sign: str) -> int:
     n = 0
@@ -267,18 +276,21 @@ def extend_metrics(
         get_prop_known_interactions,
         known_interactions=known_interactions,
         taxonomy=taxonomy,
+        count=True
     )
     HEADER.append("Discovered known interactions")
     METRIC_TO_FUN["Discovered Lima-Mendez interactions (OTU level)"] = partial(
         get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
         taxonomy=None,
+        count=True
     )
     HEADER.append("Discovered Lima-Mendez interactions (OTU level)")
     METRIC_TO_FUN["Discovered Lima-Mendez interactions (taxonomy level)"] = partial(
         get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
         taxonomy=taxonomy,
+        count=True
     )
     HEADER.append("Discovered Lima-Mendez interactions (taxonomy level)")
     all_groups = sorted(set(trophic_groups.values()))
