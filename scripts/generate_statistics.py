@@ -151,18 +151,25 @@ def get_prop_known_interactions(
     known_interactions,
     taxonomy: dict[str, tuple[str, ...]],
     count: bool = False,
+    prop_of_network_edges: bool = False
 ) -> float:
     n = 0
+    all_tax_relations = set()
     for head, tail in graph.edges():
         if head in taxonomy and tail in taxonomy:
             head_lineage = taxonomy[head]
             tail_lineage = taxonomy[tail]
-            if tuple(sorted([head_lineage, tail_lineage])) in known_interactions:
+            tax_relation = tuple(sorted([head_lineage, tail_lineage]))
+            all_tax_relations.add(tax_relation)
+            if tax_relation in known_interactions:
                 n += 1
     if count:
         return n
     else:
-        return n / len(known_interactions)
+        if prop_of_network_edges:
+            return n / len(all_tax_relations)
+        else:
+            return n / len(known_interactions)
 
 
 def get_prop_predicted_interactions(
@@ -170,6 +177,7 @@ def get_prop_predicted_interactions(
     predicted_interactions: dict[str, dict[str, str]],
     taxonomy: Optional[dict[str, tuple[str, ...]]],
     count: bool = False,
+    prop_of_network_edges: bool = False,
 ) -> float:
     n = 0
     if taxonomy is not None:
@@ -189,7 +197,11 @@ def get_prop_predicted_interactions(
     if count:
         return len(inferred_interactions & interactions)
     else:
-        return len(inferred_interactions & interactions) / len(interactions)
+        if prop_of_network_edges:
+           return len(inferred_interactions & interactions) / len(inferred_interactions) 
+        else:
+            return len(inferred_interactions & interactions) / len(interactions)
+
 
 def get_n_signs(graph: nx.Graph, sign: str) -> int:
     n = 0
@@ -254,7 +266,7 @@ METRIC_TO_FUN: Dict[str, Callable[[nx.Graph], Union[float, int]]] = {
     "Number of connected components": lambda graph: nx.number_connected_components(
         graph
     ),
-    "Mean network centrality": lambda graph: np.mean(
+    "Mean network degree centrality": lambda graph: np.mean(
         list(nx.degree_centrality(graph).values())
     ),
     "Mean network betweeness": lambda graph: np.mean(
@@ -279,6 +291,22 @@ def extend_metrics(
         count=True
     )
     HEADER.append("Discovered known interactions")
+
+    METRIC_TO_FUN["Proportion of known interactions discovered"] = partial(
+        get_prop_known_interactions,
+        known_interactions=known_interactions,
+        taxonomy=taxonomy,
+    )
+    HEADER.append("Proportion of known interactions discovered")
+
+    METRIC_TO_FUN["Proportion of edges that appear as known interactions"] = partial(
+        get_prop_known_interactions,
+        known_interactions=known_interactions,
+        taxonomy=taxonomy,
+        prop_of_network_edges=True
+    )
+    HEADER.append("Proportion of edges that appear as known interactions")
+
     METRIC_TO_FUN["Discovered Lima-Mendez interactions (OTU level)"] = partial(
         get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
@@ -286,6 +314,22 @@ def extend_metrics(
         count=True
     )
     HEADER.append("Discovered Lima-Mendez interactions (OTU level)")
+
+    METRIC_TO_FUN["Proportion of Lima-Mendez interactions (OTU level) discovered"] = partial(
+        get_prop_predicted_interactions,
+        predicted_interactions=predicted_interactions,
+        taxonomy=None,
+    )
+    HEADER.append("Proportion of Lima-Mendez interactions (OTU level) discovered")
+
+    METRIC_TO_FUN["Proportion of edges that appear as Lima-Mendez interactions (OTU level)"] = partial(
+        get_prop_predicted_interactions,
+        predicted_interactions=predicted_interactions,
+        taxonomy=None,
+        prop_of_network_edges=True
+    )
+    HEADER.append("Proportion of edges that appear as Lima-Mendez interactions (OTU level)")
+
     METRIC_TO_FUN["Discovered Lima-Mendez interactions (taxonomy level)"] = partial(
         get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
@@ -293,6 +337,22 @@ def extend_metrics(
         count=True
     )
     HEADER.append("Discovered Lima-Mendez interactions (taxonomy level)")
+
+    METRIC_TO_FUN["Proportion of Lima-Mendez interactions (taxonomy level) discovered"] = partial(
+        get_prop_predicted_interactions,
+        predicted_interactions=predicted_interactions,
+        taxonomy=taxonomy,
+    )
+    HEADER.append("Proportion of Lima-Mendez interactions (taxonomy level) discovered")
+
+    METRIC_TO_FUN["Proportion of edges that appear as Lima-Mendez interactions (taxonomy level)"] = partial(
+        get_prop_predicted_interactions,
+        predicted_interactions=predicted_interactions,
+        taxonomy=taxonomy,
+        prop_of_network_edges=True
+    )
+    HEADER.append("Proportion of edges that appear as Lima-Mendez interactions (taxonomy level)")
+
     all_groups = sorted(set(trophic_groups.values()))
     for group1, group2 in combinations(all_groups, 2):
         METRIC_TO_FUN[f"{group1}-{group2} interactions"] = partial(
