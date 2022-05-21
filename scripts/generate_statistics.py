@@ -1,4 +1,5 @@
 import json
+from multiprocessing.spawn import prepare
 import os
 from collections import defaultdict, Counter
 from functools import partial
@@ -85,6 +86,57 @@ class OpenPyXLWriter:
         self.save()
 
 
+def prepare_pairwise_stats(
+    method_graphs: dict[str, nx.Graph],
+    handle: OpenPyXLWriter,
+    taxonomy: dict[str, tuple[str, ...]],
+):
+    def common_taxon_edges(c1: Counter, c2: Counter) -> int:
+        common = 0
+        for k in set(c1) & set(c2):
+            common += min([c1[k], c2[k]])
+        return common
+
+    edges_OTU = {
+        method: set(tuple(sorted([head, tail])) for head, tail in graph.edges())
+        for method, graph in method_graphs.items()
+    }
+    edges_taxon = {
+        method: Counter(
+            tuple(sorted([taxonomy[head], taxonomy[tail]]))
+            for head, tail in graph.edges()
+        )
+        for method, graph in method_graphs.items()
+    }
+
+    common_OTUs = {
+        tuple(sorted([method1, method2])): len(edges_OTU[method1] & edges_OTU[method2])
+        for method1, method2 in combinations(method_graphs, 2)
+    }
+    common_taxons = {
+        tuple(sorted([method1, method2])): common_taxon_edges(
+            edges_taxon[method1], edges_taxon[method2]
+        )
+        for method1, method2 in combinations(method_graphs, 2)
+    }
+
+    methods = sorted(method_graphs)
+    handle.writerow([""] + methods, sheet_name="Method comparisons")
+    for level, common_edges in [
+        ("OTU level", common_OTUs),
+        ("taxon level", common_taxons),
+    ]:
+        for method in methods:
+            row = [f"{method} ({level})"]
+            for other_method in methods:
+                if method == other_method:
+                    row.append("")
+                else:
+                    row.append(common_edges[sorted([method, other_method])])
+
+            handle.writerow(row, sheet_name="Method comparisons")
+
+
 def read_trophic_groups(fpath, taxonomy):
     trophic_groups = pd.read_excel(fpath)
     taxa_to_trophic_group = dict()
@@ -151,7 +203,7 @@ def get_prop_known_interactions(
     known_interactions,
     taxonomy: dict[str, tuple[str, ...]],
     count: bool = False,
-    prop_of_network_edges: bool = False
+    prop_of_network_edges: bool = False,
 ) -> float:
     n = 0
     all_tax_relations = set()
@@ -198,7 +250,9 @@ def get_prop_predicted_interactions(
         return len(inferred_interactions & interactions)
     else:
         if prop_of_network_edges:
-           return len(inferred_interactions & interactions) / len(inferred_interactions) 
+            return len(inferred_interactions & interactions) / len(
+                inferred_interactions
+            )
         else:
             return len(inferred_interactions & interactions) / len(interactions)
 
@@ -288,7 +342,7 @@ def extend_metrics(
         get_prop_known_interactions,
         known_interactions=known_interactions,
         taxonomy=taxonomy,
-        count=True
+        count=True,
     )
     HEADER.append("Discovered known interactions")
 
@@ -303,7 +357,7 @@ def extend_metrics(
         get_prop_known_interactions,
         known_interactions=known_interactions,
         taxonomy=taxonomy,
-        prop_of_network_edges=True
+        prop_of_network_edges=True,
     )
     HEADER.append("Proportion of edges that appear as known interactions")
 
@@ -311,47 +365,59 @@ def extend_metrics(
         get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
         taxonomy=None,
-        count=True
+        count=True,
     )
     HEADER.append("Discovered Lima-Mendez interactions (OTU level)")
 
-    METRIC_TO_FUN["Proportion of Lima-Mendez interactions (OTU level) discovered"] = partial(
+    METRIC_TO_FUN[
+        "Proportion of Lima-Mendez interactions (OTU level) discovered"
+    ] = partial(
         get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
         taxonomy=None,
     )
     HEADER.append("Proportion of Lima-Mendez interactions (OTU level) discovered")
 
-    METRIC_TO_FUN["Proportion of edges that appear as Lima-Mendez interactions (OTU level)"] = partial(
+    METRIC_TO_FUN[
+        "Proportion of edges that appear as Lima-Mendez interactions (OTU level)"
+    ] = partial(
         get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
         taxonomy=None,
-        prop_of_network_edges=True
+        prop_of_network_edges=True,
     )
-    HEADER.append("Proportion of edges that appear as Lima-Mendez interactions (OTU level)")
+    HEADER.append(
+        "Proportion of edges that appear as Lima-Mendez interactions (OTU level)"
+    )
 
     METRIC_TO_FUN["Discovered Lima-Mendez interactions (taxonomy level)"] = partial(
         get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
         taxonomy=taxonomy,
-        count=True
+        count=True,
     )
     HEADER.append("Discovered Lima-Mendez interactions (taxonomy level)")
 
-    METRIC_TO_FUN["Proportion of Lima-Mendez interactions (taxonomy level) discovered"] = partial(
+    METRIC_TO_FUN[
+        "Proportion of Lima-Mendez interactions (taxonomy level) discovered"
+    ] = partial(
         get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
         taxonomy=taxonomy,
     )
     HEADER.append("Proportion of Lima-Mendez interactions (taxonomy level) discovered")
 
-    METRIC_TO_FUN["Proportion of edges that appear as Lima-Mendez interactions (taxonomy level)"] = partial(
+    METRIC_TO_FUN[
+        "Proportion of edges that appear as Lima-Mendez interactions (taxonomy level)"
+    ] = partial(
         get_prop_predicted_interactions,
         predicted_interactions=predicted_interactions,
         taxonomy=taxonomy,
-        prop_of_network_edges=True
+        prop_of_network_edges=True,
     )
-    HEADER.append("Proportion of edges that appear as Lima-Mendez interactions (taxonomy level)")
+    HEADER.append(
+        "Proportion of edges that appear as Lima-Mendez interactions (taxonomy level)"
+    )
 
     all_groups = sorted(set(trophic_groups.values()))
     for group1, group2 in combinations(all_groups, 2):
@@ -387,7 +453,7 @@ def read_graph(fpath: str) -> nx.Graph:
 
 def process(fpath: str):
     graph = read_graph(fpath)
-    return fpath, prepare_stats(graph)
+    return fpath, prepare_stats(graph), graph
 
 
 def write_interactions(
@@ -420,14 +486,11 @@ def write_interactions(
         head, tail = sorted([head, tail])
         head_taxonomy = taxonomy[head]
         tail_taxonomy = taxonomy[tail]
-        if tuple(sorted([head_taxonomy, tail_taxonomy])) in known_interactions:
+        key = tuple(sorted([head_taxonomy, tail_taxonomy]))
+        if key in known_interactions:
             known = True
-            habitat = known_interactions[tuple(sorted([head_taxonomy, tail_taxonomy]))][
-                "habitat"
-            ]
-            interaction = known_interactions[
-                tuple(sorted([head_taxonomy, tail_taxonomy]))
-            ]["interaction"]
+            habitat = known_interactions[key]["habitat"]
+            interaction = known_interactions[key]["interaction"]
         else:
             known = False
             habitat = ""
@@ -470,22 +533,30 @@ if __name__ == "__main__":
     predicted_interactions = read_predicted_interactions(snakemake.input[2])
     trophic_groups = read_trophic_groups(snakemake.input[3], taxonomy)
     extend_metrics(known_interactions, predicted_interactions, taxonomy, trophic_groups)
+    tasks = (proc_delayed(fpath) for fpath in snakemake.input[4:])
+    graphs_by_method = {}
+    stats_by_method = {}
+    for fpath, stats, graph in executor(tasks):
+        if "consensus_network" in fpath:
+            network_name = "Consensus network"
+        else:
+            head, tail = os.path.split(fpath)
+            method_name = METHOD_CAPITALIZATION[os.path.split(head)[1]]
+            network_name = method_name + " network"
+        graphs_by_method[network_name] = graph
+        stats_by_method[network_name] = stats
+
     with OpenPyXLWriter(snakemake.output[0], "Network statistics") as handle:
         handle.writerow(["network"] + HEADER)
-        tasks = (proc_delayed(fpath) for fpath in snakemake.input[4:])
-        for fpath, stats in executor(tasks):
-            if "consensus_network" in fpath:
-                network_name = "Consensus network"
-            else:
-                head, tail = os.path.split(fpath)
-                method_name = METHOD_CAPITALIZATION[os.path.split(head)[1]]
-                network_name = method_name + " network"
+        for network_name, stats in stats_by_method.items():
             handle.writerow(
                 [network_name] + [stats[statistic] for statistic in HEADER],
                 "Network statistics",
             )
+        prepare_pairwise_stats(graphs_by_method, handle, taxonomy)
+        for network_name, graph in graphs_by_method.items():
             write_interactions(
-                read_graph(fpath),
+                graph,
                 network_name,
                 handle,
                 taxonomy,
