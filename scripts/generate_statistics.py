@@ -4,6 +4,7 @@ import os
 from collections import defaultdict, Counter
 from functools import partial
 from itertools import combinations, chain
+import sys
 from typing import Dict, Callable, Union, Any, List, Optional, Tuple
 import csv
 from math import isnan
@@ -526,14 +527,23 @@ def write_interactions(
 
 
 if __name__ == "__main__":
+    (
+        tax_path,
+        known_inter_path,
+        pred_path,
+        trophic_groups_path,
+        n_threads,
+        output_fpath,
+        *network_fpaths,
+    ) = sys.argv[1:]
     proc_delayed = delayed(process)
-    executor = Parallel(n_jobs=snakemake.threads, verbose=5)
-    taxonomy = read_taxonomy(snakemake.input[0])
-    known_interactions = read_experimental_interactions(snakemake.input[1])
-    predicted_interactions = read_predicted_interactions(snakemake.input[2])
-    trophic_groups = read_trophic_groups(snakemake.input[3], taxonomy)
+    executor = Parallel(n_jobs=int(n_threads), verbose=5)
+    taxonomy = read_taxonomy(tax_path)
+    known_interactions = read_experimental_interactions(known_inter_path)
+    predicted_interactions = read_predicted_interactions(pred_path)
+    trophic_groups = read_trophic_groups(trophic_groups_path, taxonomy)
     extend_metrics(known_interactions, predicted_interactions, taxonomy, trophic_groups)
-    tasks = (proc_delayed(fpath) for fpath in snakemake.input[4:])
+    tasks = (proc_delayed(fpath) for fpath in network_fpaths)
     graphs_by_method = {}
     stats_by_method = {}
     for fpath, stats, graph in executor(tasks):
@@ -546,7 +556,7 @@ if __name__ == "__main__":
         graphs_by_method[network_name] = graph
         stats_by_method[network_name] = stats
 
-    with OpenPyXLWriter(snakemake.output[0], "Network statistics") as handle:
+    with OpenPyXLWriter(output_fpath, "Network statistics") as handle:
         handle.writerow(["network"] + HEADER)
         for network_name, stats in stats_by_method.items():
             handle.writerow(

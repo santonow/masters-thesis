@@ -201,9 +201,9 @@ rule run_blast:
 
 rule get_taxonomy:
     input:
-        path_handler.blast_results
+        path_handler.blast_results,
     output:
-        path_handler.tax_file
+        path_handler.tax_file,
     conda:
         "envs/blast.yaml"
     benchmark:
@@ -215,9 +215,9 @@ rule get_taxonomy:
 
 rule standarize_input:
     input:
-        **path_handler.raw_files
+        **path_handler.raw_files,
     output:
-        *list(path_handler.standarized_files.values())
+        *list(path_handler.standarized_files.values()),
     conda:
         "envs/file_manipulation.yaml"
     benchmark:
@@ -228,10 +228,10 @@ rule standarize_input:
 
 rule get_known_relations:
     input:
-        path_handler.tax_file
+        path_handler.tax_file,
     output:
         "data/pida_v1.08.zip",
-        path_handler.known_relations
+        path_handler.known_relations,
     conda:
         "envs/file_manipulation.yaml"
     benchmark:
@@ -242,11 +242,11 @@ rule get_known_relations:
 
 rule get_lima_mendez_relations:
     input:
-        path_handler.tax_file
+        path_handler.tax_file,
     output:
         "data/W7.xlsx",
         "data/Database_W5_OTU_occurences.tsv",
-        path_handler.lima_mendez_relations
+        path_handler.lima_mendez_relations,
     conda:
         "envs/file_manipulation.yaml"
     benchmark:
@@ -258,9 +258,9 @@ rule get_lima_mendez_relations:
 rule fastspar_infer:
     priority: 0
     input:
-        path_handler.standarized_input
+        path_handler.standarized_input,
     output:
-        **path_handler.make_outputs("fastspar")
+        **path_handler.make_outputs("fastspar"),
     log:
         "logs/fastspar.log",
     benchmark:
@@ -290,9 +290,9 @@ rule fastspar_infer:
 
 rule make_biom:
     input:
-        **path_handler.standarized_files
+        **path_handler.standarized_files,
     output:
-        path_handler.standarized_biom_input
+        path_handler.standarized_biom_input,
     conda:
         "envs/file_manipulation.yaml"
     benchmark:
@@ -303,9 +303,9 @@ rule make_biom:
 
 rule flashweave_infer:
     input:
-        *path_handler.flashweave_input
+        *path_handler.flashweave_input,
     output:
-        **path_handler.make_outputs("flashweave")
+        **path_handler.make_outputs("flashweave"),
     threads: 5
     log:
         "logs/flashweave.log",
@@ -334,9 +334,9 @@ rule flashweave_infer:
 
 rule conet_infer:
     input:
-        path_handler.standarized_input
+        path_handler.standarized_input,
     output:
-        *path_handler.make_outputs("conet", only_files=True)
+        *path_handler.make_outputs("conet", only_files=True),
     log:
         "logs/conet.log",
     threads: 8
@@ -350,9 +350,9 @@ rule conet_infer:
 
 rule standarize_networks:
     input:
-        **{"networks": path_handler.raw_graphs, "tax_table": path_handler.tax_file}
+        **{"networks": path_handler.raw_graphs, "tax_table": path_handler.tax_file},
     output:
-        *path_handler.standarized_graphs
+        *path_handler.standarized_graphs,
     log:
         "logs/standarize_networks.log",
     conda:
@@ -365,9 +365,9 @@ rule standarize_networks:
 
 rule make_consensus_network:
     input:
-        *path_handler.standarized_graphs
+        *path_handler.standarized_graphs,
     output:
-        path_handler.consensus_network_path
+        path_handler.consensus_network_path,
     log:
         "logs/make_consensus_network.log",
     conda:
@@ -380,7 +380,7 @@ rule make_consensus_network:
 
 rule generate_vis_file:
     input:
-        **path_handler.files_for_visualization
+        **path_handler.files_for_visualization,
     output:
         "visualization/data.json",
     conda:
@@ -405,12 +405,16 @@ rule generate_stats:
         "envs/file_manipulation.yaml"
     benchmark:
         "benchmark/generate_stats.benchmark"
-    threads: 3
-    script:
-        "scripts/generate_statistics.py"
+    log:
+        "logs/generate_stats.log"
+    threads: 4
+    shell:
+        "python -m scripts.generate_statistics " + " ".join(
+            [input[0], input[1], input[2], input[3], threads, output[0], *input[4:]]
+        ) >> logs/generate_stats.log
 
 
 rule all:
     input:
         "data/stats.xlsx",
-        "visualization/data.json"
+        "visualization/data.json",
