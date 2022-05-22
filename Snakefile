@@ -406,12 +406,10 @@ rule generate_stats:
     benchmark:
         "benchmark/generate_stats.benchmark"
     log:
-        "logs/generate_stats.log"
+        "logs/generate_stats.log",
     threads: 4
     shell:
-        "python -m scripts.generate_statistics " + " ".join(
-            [input[0], input[1], input[2], input[3], threads, output[0], *input[4:]]
-        ) >> logs/generate_stats.log
+        "python -m scripts.generate_statistics {input[0]} {input[1]} {input[2]} {input[3]} {threads} {output[0]} {input[4:]} >> {log}"
 
 
 rule all:
