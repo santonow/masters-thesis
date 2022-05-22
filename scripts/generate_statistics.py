@@ -133,7 +133,7 @@ def prepare_pairwise_stats(
                 if method == other_method:
                     row.append("")
                 else:
-                    row.append(common_edges[sorted([method, other_method])])
+                    row.append(common_edges[tuple(sorted([method, other_method]))])
 
             handle.writerow(row, sheet_name="Method comparisons")
 
