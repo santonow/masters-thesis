@@ -18,6 +18,8 @@ for config_name, config in snakemake.config["fastspar_configs"].items():
             os.path.join(output_path, "covariances.tsv"),
             "--threads",
             str(snakemake.threads),
+            "--seed",
+            42,
         ]
         for option in ["iterations", "exclude_iterations", "threshold"]:
             if option in config:

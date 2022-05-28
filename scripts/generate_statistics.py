@@ -15,7 +15,6 @@ import openpyxl
 from openpyxl.utils import get_column_letter
 import pandas as pd
 from joblib import Parallel, delayed
-from pytz import country_names
 
 
 RANKS = [

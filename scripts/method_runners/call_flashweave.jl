@@ -1,9 +1,10 @@
 using Pkg
 
 if "FlashWeave" ∉ keys(Pkg.installed())
-    Pkg.add("FlashWeave")
+    Pkg.add("FlashWeave@0.19")
 end
 
+import Random
 
 using Distributed
 addprocs(snakemake.threads)
@@ -15,7 +16,13 @@ open(snakemake.log[1], "a") do out
         redirect_stderr(out) do
             for (configname, config) in snakemake.config["flashweave_configs"]
                 if startswith(configname, "config")
-                    config_d = (Symbol(key) => val for (key, val) in config)
+                    config_d = Dict()
+                    for (key, val) in config:
+                        if key == "random_seed"
+                            Random.seed!(val)
+                        else
+                            config_d[Symbol(key)] = val
+                    # config_d = (Symbol(key) => val for (key, val) in config)
                     data_path = snakemake.input[1]
                     if length(snakemake.input) > 1
                         metadata_path = snakemake.input[2]

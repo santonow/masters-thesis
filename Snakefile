@@ -345,7 +345,7 @@ rule conet_infer:
     conda:
         "envs/custom_conet.yaml"
     shell:
-        """python -u custom_conet/run_correlation_inference.py {input} {threads} {output} >> {log}"""
+        """python -u custom_conet/run_correlation_inference.py {input} {threads} {output}""" >> {log}"""
 
 
 rule standarize_networks:

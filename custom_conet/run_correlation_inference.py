@@ -2,6 +2,7 @@ import csv
 import sys
 from collections import Counter
 from typing import Tuple, Set
+import random
 
 from joblib import Parallel
 from joblib import delayed as delayed
@@ -23,6 +24,10 @@ from functions import (
 )
 
 
+np.random.seed(42)
+random.seed(42)
+
+
 class timer:
     def __init__(self, message):
         self.message = message
@@ -41,7 +46,7 @@ class CoNet:
         self,
         otu_table: OTUTable,
         n_iter: int = 1000,
-        methods: Tuple[str] = ("spearman", "kullback-leibler"),
+        methods: Tuple[str, ...] = ("spearman", "kullback-leibler"),
         p_value_threshold: float = 0.05,
         n_jobs: int = 4,
         bh: bool = True,

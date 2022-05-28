@@ -380,9 +380,6 @@ def merge_p_values(pvals_1, pvals_2, indices):
     pvals_2_vec = np.array(
         [pval for pval, _, _ in matrix_iter(pvals_2, indices)], dtype=np.float64
     )
-    print(len(indices))
-    print(pvals_1_vec)
-    print(pvals_2_vec)
     corrcoeff = compute_correlation(pvals_1_vec, pvals_2_vec, method="pearson")
 
     # Brown's approx formula
@@ -396,7 +393,6 @@ def merge_p_values(pvals_1, pvals_2, indices):
 
     dof = (2 * ((measure_number * 2) ** 2)) / variance
     correction_factor = variance / (2.0 * 2 * measure_number)
-    print(dof, correction_factor, variance, corrcoeff)
     # compute corrected p-values
 
     xs = np.array([x[0] for x in sorted(indices)], dtype=np.int64)

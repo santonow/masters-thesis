@@ -7,6 +7,7 @@ input:
   metadata_fname: "amplicon_station_metadata.tsv"
   min_tot_abundance: null
   relative_abundance: 0.00000001
+  zero_threshold: 0.03
 
 fastspar_configs:
   output_dir: "data/fastspar_results/"
@@ -19,6 +20,7 @@ fastspar_configs:
 flashweave_configs:
   output_dir: "data/flashweave_results/"
   config1:
+    random_seed: 42
     sensitive:     true
     heterogeneous: false
 
@@ -43,7 +45,8 @@ phyloseq_configs:
 
 conet_configs:
   output_dir: "data/conet_results/"
-  config_default: {}
+  config_default:
+    random_seed: 42
 
 visualization:
   max_nodes: 50
