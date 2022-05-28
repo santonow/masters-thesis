@@ -204,8 +204,10 @@ def get_prop_known_interactions(
     taxonomy: dict[str, tuple[str, ...]],
     count: bool = False,
     prop_of_network_edges: bool = False,
+    kind="all",
 ) -> float:
     n = 0
+    results = Counter()
     all_tax_relations = set()
     for head, tail in graph.edges():
         if head in taxonomy and tail in taxonomy:
@@ -214,14 +216,17 @@ def get_prop_known_interactions(
             tax_relation = tuple(sorted([head_lineage, tail_lineage]))
             all_tax_relations.add(tax_relation)
             if tax_relation in known_interactions:
+                data = known_interactions[tax_relation]
+                results["all"] += 1
+                results[data["interaction"]] += 1
                 n += 1
     if count:
-        return n
+        return results[kind]
     else:
         if prop_of_network_edges:
-            return n / len(all_tax_relations)
+            return results[kind] / len(all_tax_relations)
         else:
-            return n / len(known_interactions)
+            return results[kind] / len(known_interactions)
 
 
 def get_prop_predicted_interactions(
@@ -231,7 +236,6 @@ def get_prop_predicted_interactions(
     count: bool = False,
     prop_of_network_edges: bool = False,
 ) -> float:
-    n = 0
     if taxonomy is not None:
         inferred_interactions = {
             tuple(sorted([taxonomy[head], taxonomy[tail]]))
@@ -360,6 +364,17 @@ def extend_metrics(
         prop_of_network_edges=True,
     )
     HEADER.append("Proportion of edges that appear as known interactions")
+
+    all_interactions = {elem["interaction"] for elem in known_interactions.values()}
+    for kind in sorted(all_interactions):
+        METRIC_TO_FUN[f"Discovered known interactions ({kind})"] = partial(
+            get_prop_known_interactions,
+            known_interactions=known_interactions,
+            taxonomy=taxonomy,
+            count=True,
+            kind=kind,
+        )
+        HEADER.append(f"Discovered known interactions ({kind})")
 
     METRIC_TO_FUN["Discovered Lima-Mendez interactions (OTU level)"] = partial(
         get_prop_predicted_interactions,
