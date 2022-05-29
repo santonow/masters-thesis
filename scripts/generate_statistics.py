@@ -168,7 +168,7 @@ def read_experimental_interactions(interactions_fpath: str) -> dict:
     with open(interactions_fpath) as handle:
         reader = csv.reader(handle, delimiter="\t")
         next(reader)
-        for head, tail, _, habitat, interaction in reader:
+        for head, tail, _, interaction, habitat in reader:
             head_lineage = tuple(json.loads(head))
             tail_lineage = tuple(json.loads(tail))
             interactions[tuple(sorted([head_lineage, tail_lineage]))] = {
