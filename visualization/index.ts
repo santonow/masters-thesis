@@ -1,10 +1,3 @@
-/**
- * This example shows how to load a GEXF graph file (using the dedicated
- * graphology parser), and display it with some basic map features: Zoom in and
- * out buttons, reset zoom button, and a slider to increase or decrease the
- * quantity of labels displayed on screen.
- */
-
 import Sigma from "sigma";
 import { Coordinates, EdgeDisplayData, NodeDisplayData } from "sigma/types";
 import Graph from "graphology";
@@ -127,14 +120,10 @@ function setSearchQuery(query: string) {
           lineage.some((taxon: string) => taxon.toLowerCase().includes(lcQuery))
       );
 
-    // If we have a single perfect match, them we remove the suggestions, and
-    // we consider the user has selected a node through the datalist
-    // autocomplete:
     if (suggestions.length === 1 && suggestions[0].label === query) {
       state.selectedNode = suggestions[0].id;
       state.suggestions = undefined;
 
-      // Move the camera to center it on the selected node:
       const nodePosition = renderer.getNodeDisplayData(
         state.selectedNode
       ) as Coordinates;
@@ -142,19 +131,16 @@ function setSearchQuery(query: string) {
         duration: 500,
       });
     }
-    // Else, we display the suggestions list:
     else {
       state.selectedNode = undefined;
       state.suggestions = new Set(suggestions.map(({ id }) => id));
     }
   }
-  // If the query is empty, then we reset the selectedNode / suggestions state:
   else {
     state.selectedNode = undefined;
     state.suggestions = undefined;
   }
 
-  // Refresh rendering:
   renderer.refresh();
 }
 
@@ -168,7 +154,6 @@ function setHoveredNode(node?: string) {
     state.hoveredNeighbors = undefined;
   }
 
-  // Refresh rendering:
   renderer.refresh();
 }
 
@@ -249,10 +234,6 @@ function showNode(selectedNetworks: Set<string>, nodeSources: Set<string>) {
   return false;
 }
 
-// Render nodes accordingly to the internal state:
-// 1. If a node is selected, it is highlighted
-// 2. If there is query, all non-matching nodes are greyed
-// 3. If there is a hovered node, all non-neighbor nodes are greyed
 renderer.setSetting("nodeReducer", (node, data) => {
   const res: Partial<NodeDisplayData> = { ...data };
 
@@ -270,8 +251,6 @@ renderer.setSetting("nodeReducer", (node, data) => {
     res.hidden = true;
   } else if (state.suggestions && !state.suggestions.has(node)) {
     res.hidden = true;
-    // res.label = "";
-    // res.color = "#f6f6f6";
   }
 
   return res;
@@ -290,11 +269,6 @@ function showEdge(selectedNetworks: Set<string>, edgeSources: Set<string>) {
 }
 
 
-// Render edges accordingly to the internal state:
-// 1. If a node is hovered, the edge is hidden if it is not connected to the
-//    node
-// 2. If there is a query, the edge is only visible if it connects two
-//    suggestions
 renderer.setSetting("edgeReducer", (edge, data) => {
   const res: Partial<EdgeDisplayData> = { ...data };
 
