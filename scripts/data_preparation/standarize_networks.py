@@ -22,7 +22,7 @@ RANKS = [
 ]
 
 
-MAX_EDGES = 50000
+MAX_EDGES = 100000
 
 
 def filter_graph(graph: nx.Graph, n_edges: int) -> nx.Graph:
