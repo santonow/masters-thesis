@@ -19,7 +19,7 @@ for config_name, config in snakemake.config["fastspar_configs"].items():
             "--threads",
             str(snakemake.threads),
             "--seed",
-            42,
+            str(42),
         ]
         for option in ["iterations", "exclude_iterations", "threshold"]:
             if option in config:
