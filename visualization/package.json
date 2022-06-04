@@ -1,12 +1,12 @@
 {
-  "name": "sigma-example-load-gexf-file",
+  "name": "network_visualization",
   "version": "1.0.0",
-  "description": "This example loads a GEXF graph file and displays it with a few classic interactive features.",
+  "description": "Network visualization.",
   "main": "index.js",
   "scripts": {
     "build": "tsc && browserify index.js -o build/bundle.js",
     "prestart": "npm run build",
-    "start": "ws --spa index.html"
+    "start": "ws --spa index.html --port 8989"
   },
   "license": "MIT",
   "dependencies": {
