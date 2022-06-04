@@ -148,6 +148,8 @@ class PathHandler:
 path_handler = PathHandler()
 
 
+# hack to allow using occurence_table module in custom_conet package
+# snakemake doesn't handle imports of called scripts very well
 onstart:
     import shutil
     from pathlib import Path
@@ -345,7 +347,7 @@ rule conet_infer:
     conda:
         "envs/custom_conet.yaml"
     shell:
-        """python -u custom_conet/run_correlation_inference.py {input} {threads} {output}""" >> {log}"""
+        """python -u custom_conet/run_correlation_inference.py {input} {threads} {output} >> {log}"""
 
 
 rule standarize_networks:
@@ -386,7 +388,7 @@ rule generate_vis_file:
     conda:
         "envs/prepare_visualization.yaml"
     benchmark:
-        "benchmark/generate_vis_file.benchmark"
+        "benchmarks/generate_vis_file.benchmark"
     script:
         "scripts/prepare_visualization_file.py"
 
@@ -404,7 +406,7 @@ rule generate_stats:
     conda:
         "envs/file_manipulation.yaml"
     benchmark:
-        "benchmark/generate_stats.benchmark"
+        "benchmarks/generate_stats.benchmark"
     log:
         "logs/generate_stats.log",
     threads: 4
