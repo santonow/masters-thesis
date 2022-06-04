@@ -49,7 +49,7 @@ This avoids running the steps of the workflow that involve classifying consensus
 
 ### Execution
 
-Run `snakemake --use-conda -c n all`, where `n` is the number of cores you want to be used. After finishing (which takes around a day for 16 cores and OTU table with dimensions ), the results will be available in the `data` directory.
+Run `snakemake --use-conda -c n all`, where `n` is the number of cores you want to be used. After finishing (which takes around a day for 16 cores and OTU table with dimensions 13927x334), the results will be available in the `data` directory.
 
 ### Results
 
