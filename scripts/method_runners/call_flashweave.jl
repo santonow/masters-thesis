@@ -17,11 +17,13 @@ open(snakemake.log[1], "a") do out
             for (configname, config) in snakemake.config["flashweave_configs"]
                 if startswith(configname, "config")
                     config_d = Dict()
-                    for (key, val) in config:
+                    for (key, val) in config
                         if key == "random_seed"
                             Random.seed!(val)
                         else
                             config_d[Symbol(key)] = val
+                        end
+                    end
                     # config_d = (Symbol(key) => val for (key, val) in config)
                     data_path = snakemake.input[1]
                     if length(snakemake.input) > 1
