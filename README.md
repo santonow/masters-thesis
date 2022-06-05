@@ -13,7 +13,7 @@
 
 ### Visualization
 
-If you want to run an interactive visualization of the workflow results, you'll need to install node: `conda install npm=17.8.0`. Then, navigate to the `visualization` directory and run `npm install`.
+If you want to run an interactive visualization of the workflow results, you'll need to install node: `conda install node=17.8.0`. Then, navigate to the `visualization` directory and run `npm install`.
 
 ## Running the workflow
 
