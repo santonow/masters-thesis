@@ -1,11 +1,10 @@
 import json
-from multiprocessing.spawn import prepare
 import os
 from collections import defaultdict, Counter
 from functools import partial
 from itertools import combinations, chain
 import sys
-from typing import Dict, Callable, Union, Any, List, Optional, Tuple
+from typing import Dict, Callable, Iterator, Union, Any, List, Optional, Tuple
 import csv
 from math import isnan
 
@@ -163,7 +162,9 @@ def read_trophic_groups(fpath, taxonomy):
     return otu_to_group
 
 
-def read_experimental_interactions(interactions_fpath: str) -> dict:
+def read_experimental_interactions(
+    interactions_fpath: str, trim_to_genus: bool = False
+) -> dict:
     interactions = dict()
     with open(interactions_fpath) as handle:
         reader = csv.reader(handle, delimiter="\t")
@@ -171,6 +172,11 @@ def read_experimental_interactions(interactions_fpath: str) -> dict:
         for head, tail, _, interaction, habitat in reader:
             head_lineage = tuple(json.loads(head))
             tail_lineage = tuple(json.loads(tail))
+            if trim_to_genus:
+                if len(head_lineage) == 8:
+                    head_lineage = head_lineage[:-1]
+                if len(tail_lineage) == 8:
+                    tail_lineage = tail_lineage[:-1]
             interactions[tuple(sorted([head_lineage, tail_lineage]))] = {
                 "interaction": interaction,
                 "habitat": habitat,
@@ -205,21 +211,21 @@ def get_prop_known_interactions(
     count: bool = False,
     prop_of_network_edges: bool = False,
     kind="all",
+    trim_to_genus: bool = False,
 ) -> float:
     n = 0
     results = Counter()
     all_tax_relations = set()
-    for head, tail in graph.edges():
-        if head in taxonomy and tail in taxonomy:
-            head_lineage = taxonomy[head]
-            tail_lineage = taxonomy[tail]
-            tax_relation = tuple(sorted([head_lineage, tail_lineage]))
-            all_tax_relations.add(tax_relation)
-            if tax_relation in known_interactions:
-                data = known_interactions[tax_relation]
-                results["all"] += 1
-                results[data["interaction"]] += 1
-                n += 1
+    for head_lineage, tail_lineage in yield_tax_edges(graph, taxonomy, trim_to_genus):
+        head_lineage = taxonomy[head]
+        tail_lineage = taxonomy[tail]
+        tax_relation = tuple(sorted([head_lineage, tail_lineage]))
+        all_tax_relations.add(tax_relation)
+        if tax_relation in known_interactions:
+            data = known_interactions[tax_relation]
+            results["all"] += 1
+            results[data["interaction"]] += 1
+            n += 1
     if count:
         return results[kind]
     else:
@@ -229,21 +235,45 @@ def get_prop_known_interactions(
             return results[kind] / len(known_interactions)
 
 
+Taxonomy = tuple[str, ...]
+
+
+def yield_tax_edges(
+    graph: Union[nx.Graph, dict[tuple[str, str], dict[str, str]]],
+    taxonomy: dict[str, Taxonomy],
+    trim_to_genus: bool,
+) -> Iterator[Tuple[Taxonomy, Taxonomy]]:
+    edge_iter = graph.edges() if isinstance(graph, nx.Graph) else iter(graph)
+    for head, tail in edge_iter:
+        if head in taxonomy and tail in taxonomy:
+            head_tax = taxonomy[head]
+            tail_tax = taxonomy[tail]
+            if trim_to_genus:
+                if len(head_tax) == 8:
+                    head_tax = head_tax[:-1]
+                if len(tail_tax) == 8:
+                    tail_tax = tail_tax[:-1]
+            yield head_tax, tail_tax
+
+
 def get_prop_predicted_interactions(
     graph: nx.Graph,
-    predicted_interactions: dict[str, dict[str, str]],
-    taxonomy: Optional[dict[str, tuple[str, ...]]],
+    predicted_interactions: dict[tuple[str, str], dict[str, str]],
+    taxonomy: Optional[dict[str, Taxonomy]],
     count: bool = False,
     prop_of_network_edges: bool = False,
+    trim_to_genus: bool = False,
 ) -> float:
     if taxonomy is not None:
         inferred_interactions = {
-            tuple(sorted([taxonomy[head], taxonomy[tail]]))
-            for head, tail in graph.edges()
+            tuple(sorted([head, tail]))
+            for head, tail in yield_tax_edges(graph, taxonomy, trim_to_genus)
         }
         interactions = {
-            tuple(sorted([taxonomy[head], taxonomy[tail]]))
-            for head, tail in predicted_interactions
+            tuple(sorted([head, tail]))
+            for head, tail in yield_tax_edges(
+                predicted_interactions, taxonomy, trim_to_genus
+            )
         }
     else:
         inferred_interactions = {
@@ -342,106 +372,195 @@ HEADER = list(METRIC_TO_FUN.keys())
 def extend_metrics(
     known_interactions, predicted_interactions, taxonomy, trophic_groups
 ):
-    METRIC_TO_FUN["Discovered known interactions"] = partial(
-        get_prop_known_interactions,
-        known_interactions=known_interactions,
-        taxonomy=taxonomy,
-        count=True,
+    metrics = (
+        [
+            (
+                "Discovered known interactions",
+                partial(
+                    get_prop_known_interactions,
+                    known_interactions=known_interactions,
+                    taxonomy=taxonomy,
+                    count=True,
+                ),
+            ),
+            (
+                "Proportion of known interactions discovered",
+                partial(
+                    get_prop_known_interactions,
+                    known_interactions=known_interactions,
+                    taxonomy=taxonomy,
+                ),
+            ),
+            (
+                "Proportion of edges that appear as known interactions",
+                partial(
+                    get_prop_known_interactions,
+                    known_interactions=known_interactions,
+                    taxonomy=taxonomy,
+                    prop_of_network_edges=True,
+                ),
+            ),
+        ]
+        + [
+            (
+                f"Discovered known interactions ({kind})",
+                partial(
+                    get_prop_known_interactions,
+                    known_interactions=known_interactions,
+                    taxonomy=taxonomy,
+                    count=True,
+                    kind=kind,
+                    trim_to_genus=True
+                ),
+            )
+            for kind in sorted(
+                {elem["interaction"] for elem in known_interactions.values()}
+            )
+        ]
+        + [
+            (
+                "Discovered known interactions (max genus level)",
+                partial(
+                    get_prop_known_interactions,
+                    known_interactions=known_interactions,
+                    taxonomy=taxonomy,
+                    count=True,
+                    trim_to_genus=True
+                ),
+            ),
+            (
+                "Proportion of known interactions discovered (max genus level)",
+                partial(
+                    get_prop_known_interactions,
+                    known_interactions=known_interactions,
+                    taxonomy=taxonomy,
+                    trim_to_genus=True
+                ),
+            ),
+            (
+                "Proportion of edges that appear as known interactions (max genus level)",
+                partial(
+                    get_prop_known_interactions,
+                    known_interactions=known_interactions,
+                    taxonomy=taxonomy,
+                    prop_of_network_edges=True,
+                    trim_to_genus=True
+                ),
+            ),
+        ]
+        + [
+            (
+                f"Discovered known interactions ({kind}) (max genus level)",
+                partial(
+                    get_prop_known_interactions,
+                    known_interactions=known_interactions,
+                    taxonomy=taxonomy,
+                    count=True,
+                    kind=kind,
+                ),
+            )
+            for kind in sorted(
+                {elem["interaction"] for elem in known_interactions.values()}
+            )
+        ]
+        + [
+            (
+                "Discovered Lima-Mendez interactions (OTU level)",
+                partial(
+                    get_prop_predicted_interactions,
+                    predicted_interactions=predicted_interactions,
+                    taxonomy=None,
+                    count=True,
+                ),
+            ),
+            (
+                "Proportion of Lima-Mendez interactions (OTU level) discovered",
+                partial(
+                    get_prop_predicted_interactions,
+                    predicted_interactions=predicted_interactions,
+                    taxonomy=None,
+                ),
+            ),
+            (
+                "Proportion of edges that appear as Lima-Mendez interactions (OTU level)",
+                partial(
+                    get_prop_predicted_interactions,
+                    predicted_interactions=predicted_interactions,
+                    taxonomy=None,
+                    prop_of_network_edges=True,
+                ),
+            ),
+            (
+                "Discovered Lima-Mendez interactions (taxonomy level)",
+                partial(
+                    get_prop_predicted_interactions,
+                    predicted_interactions=predicted_interactions,
+                    taxonomy=taxonomy,
+                    count=True,
+                ),
+            ),
+            (
+                "Proportion of Lima-Mendez interactions (taxonomy level) discovered",
+                partial(
+                    get_prop_predicted_interactions,
+                    predicted_interactions=predicted_interactions,
+                    taxonomy=taxonomy,
+                ),
+            ),
+            (
+                "Proportion of edges that appear as Lima-Mendez interactions (taxonomy level)",
+                partial(
+                    get_prop_predicted_interactions,
+                    predicted_interactions=predicted_interactions,
+                    taxonomy=taxonomy,
+                    prop_of_network_edges=True,
+                ),
+            ),
+            (
+                "Discovered Lima-Mendez interactions (max genus level)",
+                partial(
+                    get_prop_predicted_interactions,
+                    predicted_interactions=predicted_interactions,
+                    taxonomy=taxonomy,
+                    count=True,
+                    trim_to_genus=True
+                ),
+            ),
+            (
+                "Proportion of Lima-Mendez interactions (max genus level) discovered",
+                partial(
+                    get_prop_predicted_interactions,
+                    predicted_interactions=predicted_interactions,
+                    taxonomy=taxonomy,
+                    trim_to_genus=True
+                ),
+            ),
+            (
+                "Proportion of edges that appear as Lima-Mendez interactions (max genus level)",
+                partial(
+                    get_prop_predicted_interactions,
+                    predicted_interactions=predicted_interactions,
+                    taxonomy=taxonomy,
+                    prop_of_network_edges=True,
+                    trim_to_genus=True
+                ),
+            ),
+        ]
+        + [
+            (
+                f"{group1}-{group2} interactions",
+                partial(
+                    get_trophic_group_relations,
+                    trophic_groups=trophic_groups,
+                    trophic_pair=tuple(sorted([group1, group2])),
+                ),
+            )
+            for group1, group2 in combinations(sorted(set(trophic_groups.values())), 2)
+        ]
     )
-    HEADER.append("Discovered known interactions")
-
-    METRIC_TO_FUN["Proportion of known interactions discovered"] = partial(
-        get_prop_known_interactions,
-        known_interactions=known_interactions,
-        taxonomy=taxonomy,
-    )
-    HEADER.append("Proportion of known interactions discovered")
-
-    METRIC_TO_FUN["Proportion of edges that appear as known interactions"] = partial(
-        get_prop_known_interactions,
-        known_interactions=known_interactions,
-        taxonomy=taxonomy,
-        prop_of_network_edges=True,
-    )
-    HEADER.append("Proportion of edges that appear as known interactions")
-
-    all_interactions = {elem["interaction"] for elem in known_interactions.values()}
-    for kind in sorted(all_interactions):
-        METRIC_TO_FUN[f"Discovered known interactions ({kind})"] = partial(
-            get_prop_known_interactions,
-            known_interactions=known_interactions,
-            taxonomy=taxonomy,
-            count=True,
-            kind=kind,
-        )
-        HEADER.append(f"Discovered known interactions ({kind})")
-
-    METRIC_TO_FUN["Discovered Lima-Mendez interactions (OTU level)"] = partial(
-        get_prop_predicted_interactions,
-        predicted_interactions=predicted_interactions,
-        taxonomy=None,
-        count=True,
-    )
-    HEADER.append("Discovered Lima-Mendez interactions (OTU level)")
-
-    METRIC_TO_FUN[
-        "Proportion of Lima-Mendez interactions (OTU level) discovered"
-    ] = partial(
-        get_prop_predicted_interactions,
-        predicted_interactions=predicted_interactions,
-        taxonomy=None,
-    )
-    HEADER.append("Proportion of Lima-Mendez interactions (OTU level) discovered")
-
-    METRIC_TO_FUN[
-        "Proportion of edges that appear as Lima-Mendez interactions (OTU level)"
-    ] = partial(
-        get_prop_predicted_interactions,
-        predicted_interactions=predicted_interactions,
-        taxonomy=None,
-        prop_of_network_edges=True,
-    )
-    HEADER.append(
-        "Proportion of edges that appear as Lima-Mendez interactions (OTU level)"
-    )
-
-    METRIC_TO_FUN["Discovered Lima-Mendez interactions (taxonomy level)"] = partial(
-        get_prop_predicted_interactions,
-        predicted_interactions=predicted_interactions,
-        taxonomy=taxonomy,
-        count=True,
-    )
-    HEADER.append("Discovered Lima-Mendez interactions (taxonomy level)")
-
-    METRIC_TO_FUN[
-        "Proportion of Lima-Mendez interactions (taxonomy level) discovered"
-    ] = partial(
-        get_prop_predicted_interactions,
-        predicted_interactions=predicted_interactions,
-        taxonomy=taxonomy,
-    )
-    HEADER.append("Proportion of Lima-Mendez interactions (taxonomy level) discovered")
-
-    METRIC_TO_FUN[
-        "Proportion of edges that appear as Lima-Mendez interactions (taxonomy level)"
-    ] = partial(
-        get_prop_predicted_interactions,
-        predicted_interactions=predicted_interactions,
-        taxonomy=taxonomy,
-        prop_of_network_edges=True,
-    )
-    HEADER.append(
-        "Proportion of edges that appear as Lima-Mendez interactions (taxonomy level)"
-    )
-
-    all_groups = sorted(set(trophic_groups.values()))
-    for group1, group2 in combinations(all_groups, 2):
-        METRIC_TO_FUN[f"{group1}-{group2} interactions"] = partial(
-            get_trophic_group_relations,
-            trophic_groups=trophic_groups,
-            trophic_pair=tuple(sorted([group1, group2])),
-        )
-        HEADER.append(f"{group1}-{group2} interactions")
+    for metric_name, fun in metrics:
+        METRIC_TO_FUN[metric_name] = fun
+        HEADER.append(metric_name)
 
 
 METHOD_CAPITALIZATION = {
@@ -487,8 +606,8 @@ def write_interactions(
             "weight",
             "sign",
             "in PIDA",
-            "PIDA interaction",
             "PIDA habitat",
+            "PIDA interaction",
             "in Lima-Mendez",
             "Lima-Mendez sign",
             "trophic group 1",
