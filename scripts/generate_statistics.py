@@ -385,6 +385,7 @@ def extend_metrics(
     known_interactions_genus,
     otu_ids: set[str],
     taxons_in_otu_table: set[Taxonomy],
+    taxons_in_otu_table_genus: set[Taxonomy],
     predicted_interactions,
     taxonomy,
     trophic_groups,
@@ -554,7 +555,7 @@ def extend_metrics(
                     count=True,
                     trim_to_genus=True,
                     otu_ids=otu_ids,
-                    taxons_in_otu_table=taxons_in_otu_table,
+                    taxons_in_otu_table=taxons_in_otu_table_genus,
                 ),
             ),
             (
@@ -565,7 +566,7 @@ def extend_metrics(
                     taxonomy=taxonomy,
                     trim_to_genus=True,
                     otu_ids=otu_ids,
-                    taxons_in_otu_table=taxons_in_otu_table,
+                    taxons_in_otu_table=taxons_in_otu_table_genus,
                 ),
             ),
             (
@@ -577,7 +578,7 @@ def extend_metrics(
                     prop_of_network_edges=True,
                     trim_to_genus=True,
                     otu_ids=otu_ids,
-                    taxons_in_otu_table=taxons_in_otu_table,
+                    taxons_in_otu_table=taxons_in_otu_table_genus,
                 ),
             ),
         ]
@@ -735,7 +736,9 @@ if __name__ == "__main__":
     extend_metrics(
         known_interactions,
         known_interactions_genus,
+        otu_ids,
         taxons_in_otu_table,
+        taxons_in_otu_table_genus,
         predicted_interactions,
         taxonomy,
         trophic_groups,
