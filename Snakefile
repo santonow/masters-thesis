@@ -395,6 +395,7 @@ rule generate_vis_file:
 
 rule generate_stats:
     input:
+        path_handler.standarized_input,
         path_handler.tax_file,
         path_handler.known_relations,
         path_handler.lima_mendez_relations,
