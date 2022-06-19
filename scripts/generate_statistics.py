@@ -687,12 +687,13 @@ if __name__ == "__main__":
         reader = csv.reader(handle, delimiter="\t")
         next(reader)
         for otu_id, *_ in reader:
-            lineage = taxonomy[otu_id]
-            taxons_in_otu_table.add(lineage)
-            if len(lineage) == 8:
-                taxons_in_otu_table_genus.add(lineage[:-1])
-            else:
-                taxons_in_otu_table_genus.add(lineage)
+            if otu_id != "leftover_vector":
+                lineage = taxonomy[otu_id]
+                taxons_in_otu_table.add(lineage)
+                if len(lineage) == 8:
+                    taxons_in_otu_table_genus.add(lineage[:-1])
+                else:
+                    taxons_in_otu_table_genus.add(lineage)
     known_interactions = read_experimental_interactions(
         known_inter_path, taxons_in_otu_table
     )
