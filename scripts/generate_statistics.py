@@ -27,6 +27,8 @@ RANKS = [
     "species",
 ]
 
+Taxonomy = tuple[str, ...]
+
 
 class OpenPyXLWriter:
     def __init__(self, fname: str, sheet_name=None):
@@ -163,7 +165,9 @@ def read_trophic_groups(fpath, taxonomy):
 
 
 def read_experimental_interactions(
-    interactions_fpath: str, trim_to_genus: bool = False
+    interactions_fpath: str,
+    taxons_in_otu_table: set[Taxonomy],
+    trim_to_genus: bool = False,
 ) -> dict:
     interactions = dict()
     with open(interactions_fpath) as handle:
@@ -177,10 +181,14 @@ def read_experimental_interactions(
                     head_lineage = head_lineage[:-1]
                 if len(tail_lineage) == 8:
                     tail_lineage = tail_lineage[:-1]
-            interactions[tuple(sorted([head_lineage, tail_lineage]))] = {
-                "interaction": interaction,
-                "habitat": habitat,
-            }
+            if (
+                head_lineage in taxons_in_otu_table
+                and tail_lineage in taxons_in_otu_table
+            ):
+                interactions[tuple(sorted([head_lineage, tail_lineage]))] = {
+                    "interaction": interaction,
+                    "habitat": habitat,
+                }
     return interactions
 
 
@@ -231,9 +239,6 @@ def get_prop_known_interactions(
             return results[kind] / len(all_tax_relations)
         else:
             return results[kind] / len(known_interactions)
-
-
-Taxonomy = tuple[str, ...]
 
 
 def yield_tax_edges(
@@ -368,7 +373,11 @@ HEADER = list(METRIC_TO_FUN.keys())
 
 
 def extend_metrics(
-    known_interactions, predicted_interactions, taxonomy, trophic_groups
+    known_interactions,
+    known_interactions_genus,
+    predicted_interactions,
+    taxonomy,
+    trophic_groups,
 ):
     metrics = (
         [
@@ -408,7 +417,7 @@ def extend_metrics(
                     taxonomy=taxonomy,
                     count=True,
                     kind=kind,
-                    trim_to_genus=True
+                    trim_to_genus=True,
                 ),
             )
             for kind in sorted(
@@ -420,29 +429,29 @@ def extend_metrics(
                 "Discovered known interactions (max genus level)",
                 partial(
                     get_prop_known_interactions,
-                    known_interactions=known_interactions,
+                    known_interactions=known_interactions_genus,
                     taxonomy=taxonomy,
                     count=True,
-                    trim_to_genus=True
+                    trim_to_genus=True,
                 ),
             ),
             (
                 "Proportion of known interactions discovered (max genus level)",
                 partial(
                     get_prop_known_interactions,
-                    known_interactions=known_interactions,
+                    known_interactions=known_interactions_genus,
                     taxonomy=taxonomy,
-                    trim_to_genus=True
+                    trim_to_genus=True,
                 ),
             ),
             (
                 "Proportion of edges that appear as known interactions (max genus level)",
                 partial(
                     get_prop_known_interactions,
-                    known_interactions=known_interactions,
+                    known_interactions=known_interactions_genus,
                     taxonomy=taxonomy,
                     prop_of_network_edges=True,
-                    trim_to_genus=True
+                    trim_to_genus=True,
                 ),
             ),
         ]
@@ -451,7 +460,7 @@ def extend_metrics(
                 f"Discovered known interactions ({kind}) (max genus level)",
                 partial(
                     get_prop_known_interactions,
-                    known_interactions=known_interactions,
+                    known_interactions=known_interactions_genus,
                     taxonomy=taxonomy,
                     count=True,
                     kind=kind,
@@ -521,7 +530,7 @@ def extend_metrics(
                     predicted_interactions=predicted_interactions,
                     taxonomy=taxonomy,
                     count=True,
-                    trim_to_genus=True
+                    trim_to_genus=True,
                 ),
             ),
             (
@@ -530,7 +539,7 @@ def extend_metrics(
                     get_prop_predicted_interactions,
                     predicted_interactions=predicted_interactions,
                     taxonomy=taxonomy,
-                    trim_to_genus=True
+                    trim_to_genus=True,
                 ),
             ),
             (
@@ -540,7 +549,7 @@ def extend_metrics(
                     predicted_interactions=predicted_interactions,
                     taxonomy=taxonomy,
                     prop_of_network_edges=True,
-                    trim_to_genus=True
+                    trim_to_genus=True,
                 ),
             ),
         ]
@@ -659,6 +668,7 @@ def write_interactions(
 
 if __name__ == "__main__":
     (
+        otu_table_fpath,
         tax_path,
         known_inter_path,
         pred_path,
@@ -669,11 +679,35 @@ if __name__ == "__main__":
     ) = sys.argv[1:]
     proc_delayed = delayed(process)
     executor = Parallel(n_jobs=int(n_threads), verbose=5)
+
     taxonomy = read_taxonomy(tax_path)
-    known_interactions = read_experimental_interactions(known_inter_path)
+    taxons_in_otu_table = set()
+    taxons_in_otu_table_genus = set()
+    with open(otu_table_fpath) as handle:
+        reader = csv.reader(handle, delimiter="\t")
+        next(reader)
+        for otu_id, _ in reader:
+            lineage = taxonomy[otu_id]
+            taxons_in_otu_table.add(lineage)
+            if len(lineage) == 8:
+                taxons_in_otu_table_genus.add(lineage[:-1])
+            else:
+                taxons_in_otu_table_genus.add(lineage)
+    known_interactions = read_experimental_interactions(
+        known_inter_path, taxons_in_otu_table
+    )
+    known_interactions_genus = read_experimental_interactions(
+        known_inter_path, taxons_in_otu_table_genus, True
+    )
     predicted_interactions = read_predicted_interactions(pred_path)
     trophic_groups = read_trophic_groups(trophic_groups_path, taxonomy)
-    extend_metrics(known_interactions, predicted_interactions, taxonomy, trophic_groups)
+    extend_metrics(
+        known_interactions,
+        known_interactions_genus,
+        predicted_interactions,
+        taxonomy,
+        trophic_groups,
+    )
     tasks = (proc_delayed(fpath) for fpath in network_fpaths)
     graphs_by_method = {}
     stats_by_method = {}
