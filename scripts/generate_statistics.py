@@ -245,24 +245,28 @@ def yield_tax_edges(
     graph: Union[nx.Graph, dict[tuple[str, str], dict[str, str]]],
     taxonomy: dict[str, Taxonomy],
     trim_to_genus: bool,
+    otu_ids: Optional[set[str]] = None,
 ) -> Iterator[Tuple[Taxonomy, Taxonomy]]:
     edge_iter = graph.edges() if isinstance(graph, nx.Graph) else iter(graph)
     for head, tail in edge_iter:
         if head in taxonomy and tail in taxonomy:
-            head_tax = taxonomy[head]
-            tail_tax = taxonomy[tail]
-            if trim_to_genus:
-                if len(head_tax) == 8:
-                    head_tax = head_tax[:-1]
-                if len(tail_tax) == 8:
-                    tail_tax = tail_tax[:-1]
-            yield head_tax, tail_tax
+            if (otu_ids is None) or (head in otu_ids and tail in otu_ids):
+                head_tax = taxonomy[head]
+                tail_tax = taxonomy[tail]
+                if trim_to_genus:
+                    if len(head_tax) == 8:
+                        head_tax = head_tax[:-1]
+                    if len(tail_tax) == 8:
+                        tail_tax = tail_tax[:-1]
+                yield head_tax, tail_tax
 
 
 def get_prop_predicted_interactions(
     graph: nx.Graph,
     predicted_interactions: dict[tuple[str, str], dict[str, str]],
-    taxonomy: Optional[dict[str, Taxonomy]],
+    otu_ids: set[str],
+    taxons_in_otu_table: set[Taxonomy],
+    taxonomy: Optional[dict[str, Taxonomy]] = None,
     count: bool = False,
     prop_of_network_edges: bool = False,
     trim_to_genus: bool = False,
@@ -275,14 +279,18 @@ def get_prop_predicted_interactions(
         interactions = {
             tuple(sorted([head, tail]))
             for head, tail in yield_tax_edges(
-                predicted_interactions, taxonomy, trim_to_genus
+                predicted_interactions, taxonomy, trim_to_genus, taxons_in_otu_table
             )
         }
     else:
         inferred_interactions = {
             tuple(sorted([head, tail])) for head, tail in graph.edges()
         }
-        interactions = set(predicted_interactions)
+        interactions = {
+            (head, tail)
+            for head, tail in predicted_interactions
+            if head in otu_ids and tail in otu_ids
+        }
     if count:
         return len(inferred_interactions & interactions)
     else:
@@ -375,6 +383,8 @@ HEADER = list(METRIC_TO_FUN.keys())
 def extend_metrics(
     known_interactions,
     known_interactions_genus,
+    otu_ids: set[str],
+    taxons_in_otu_table: set[Taxonomy],
     predicted_interactions,
     taxonomy,
     trophic_groups,
@@ -476,6 +486,8 @@ def extend_metrics(
                 partial(
                     get_prop_predicted_interactions,
                     predicted_interactions=predicted_interactions,
+                    otu_ids=otu_ids,
+                    taxons_in_otu_table=taxons_in_otu_table,
                     taxonomy=None,
                     count=True,
                 ),
@@ -486,6 +498,8 @@ def extend_metrics(
                     get_prop_predicted_interactions,
                     predicted_interactions=predicted_interactions,
                     taxonomy=None,
+                    otu_ids=otu_ids,
+                    taxons_in_otu_table=taxons_in_otu_table,
                 ),
             ),
             (
@@ -495,6 +509,8 @@ def extend_metrics(
                     predicted_interactions=predicted_interactions,
                     taxonomy=None,
                     prop_of_network_edges=True,
+                    otu_ids=otu_ids,
+                    taxons_in_otu_table=taxons_in_otu_table,
                 ),
             ),
             (
@@ -504,6 +520,8 @@ def extend_metrics(
                     predicted_interactions=predicted_interactions,
                     taxonomy=taxonomy,
                     count=True,
+                    otu_ids=otu_ids,
+                    taxons_in_otu_table=taxons_in_otu_table,
                 ),
             ),
             (
@@ -512,6 +530,8 @@ def extend_metrics(
                     get_prop_predicted_interactions,
                     predicted_interactions=predicted_interactions,
                     taxonomy=taxonomy,
+                    otu_ids=otu_ids,
+                    taxons_in_otu_table=taxons_in_otu_table,
                 ),
             ),
             (
@@ -521,6 +541,8 @@ def extend_metrics(
                     predicted_interactions=predicted_interactions,
                     taxonomy=taxonomy,
                     prop_of_network_edges=True,
+                    otu_ids=otu_ids,
+                    taxons_in_otu_table=taxons_in_otu_table,
                 ),
             ),
             (
@@ -531,6 +553,8 @@ def extend_metrics(
                     taxonomy=taxonomy,
                     count=True,
                     trim_to_genus=True,
+                    otu_ids=otu_ids,
+                    taxons_in_otu_table=taxons_in_otu_table,
                 ),
             ),
             (
@@ -540,6 +564,8 @@ def extend_metrics(
                     predicted_interactions=predicted_interactions,
                     taxonomy=taxonomy,
                     trim_to_genus=True,
+                    otu_ids=otu_ids,
+                    taxons_in_otu_table=taxons_in_otu_table,
                 ),
             ),
             (
@@ -550,6 +576,8 @@ def extend_metrics(
                     taxonomy=taxonomy,
                     prop_of_network_edges=True,
                     trim_to_genus=True,
+                    otu_ids=otu_ids,
+                    taxons_in_otu_table=taxons_in_otu_table,
                 ),
             ),
         ]
@@ -683,11 +711,13 @@ if __name__ == "__main__":
     taxonomy = read_taxonomy(tax_path)
     taxons_in_otu_table = set()
     taxons_in_otu_table_genus = set()
+    otu_ids = set()
     with open(otu_table_fpath) as handle:
         reader = csv.reader(handle, delimiter="\t")
         next(reader)
         for otu_id, *_ in reader:
             if otu_id != "leftover_vector":
+                otu_ids.add(otu_id)
                 lineage = taxonomy[otu_id]
                 taxons_in_otu_table.add(lineage)
                 if len(lineage) == 8:
@@ -700,11 +730,12 @@ if __name__ == "__main__":
     known_interactions_genus = read_experimental_interactions(
         known_inter_path, taxons_in_otu_table_genus, True
     )
-    predicted_interactions = read_predicted_interactions(pred_path)
+    predicted_interactions = read_predicted_interactions(pred_path, otu_ids)
     trophic_groups = read_trophic_groups(trophic_groups_path, taxonomy)
     extend_metrics(
         known_interactions,
         known_interactions_genus,
+        taxons_in_otu_table,
         predicted_interactions,
         taxonomy,
         trophic_groups,
