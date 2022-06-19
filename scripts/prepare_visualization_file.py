@@ -123,7 +123,6 @@ def determine_sizes(stats, field="degree centrality"):
     ranges = dict()
 
     for i, elem in enumerate(np.array_split(sorted(list(stats[field].values())), 9), 1):
-        print(len(elem))
         ranges[(elem[0], elem[-1])] = i / 2 + 1
 
     return ranges

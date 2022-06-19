@@ -231,9 +231,9 @@ class CoNet:
             return iters
 
         executor = Parallel(n_jobs=self.n_jobs, verbose=10)
-        delated_fun = delayed(reboot)
+        delayed_fun = delayed(reboot)
         tasks = (
-            delated_fun(matrix, proc_iters, method, self.common_edges)
+            delayed_fun(matrix, proc_iters, method, self.common_edges)
             for proc_iters in prepare_proc_iters(self.n_iter, self.n_jobs)
         )
 
