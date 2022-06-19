@@ -411,7 +411,10 @@ rule generate_stats:
         "logs/generate_stats.log",
     threads: 4
     shell:
-        "python -m scripts.generate_statistics {input[0]} {input[1]} {input[2]} {input[3]} {threads} {output[0]} " + " ".join("{" + f"input[{4 + i}]" + "}" for i in range(len(METHODS_EXTENSIONS) + 1)) + " >> {log}"
+        "python -m scripts.generate_statistics "
+        "{input[0]} {input[1]} {input[2]} {input[3]} {threads} {output[0]} " + " ".join(
+            "{" + f"input[{4 + i}]" + "}" for i in range(len(METHODS_EXTENSIONS) + 1)
+        ) + " >> {log}"
 
 
 rule all:

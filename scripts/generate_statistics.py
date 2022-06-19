@@ -217,8 +217,6 @@ def get_prop_known_interactions(
     results = Counter()
     all_tax_relations = set()
     for head_lineage, tail_lineage in yield_tax_edges(graph, taxonomy, trim_to_genus):
-        head_lineage = taxonomy[head]
-        tail_lineage = taxonomy[tail]
         tax_relation = tuple(sorted([head_lineage, tail_lineage]))
         all_tax_relations.add(tax_relation)
         if tax_relation in known_interactions:
