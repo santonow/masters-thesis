@@ -686,7 +686,7 @@ if __name__ == "__main__":
     with open(otu_table_fpath) as handle:
         reader = csv.reader(handle, delimiter="\t")
         next(reader)
-        for otu_id, _ in reader:
+        for otu_id, *_ in reader:
             lineage = taxonomy[otu_id]
             taxons_in_otu_table.add(lineage)
             if len(lineage) == 8:
