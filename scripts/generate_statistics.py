@@ -221,8 +221,8 @@ def get_prop_known_interactions(
     kind="all",
     trim_to_genus: bool = False,
 ) -> float:
-    n = 0
     results = Counter()
+    unique_results = defaultdict(set)
     all_tax_relations = set()
     for head_lineage, tail_lineage in yield_tax_edges(graph, taxonomy, trim_to_genus):
         tax_relation = tuple(sorted([head_lineage, tail_lineage]))
@@ -231,14 +231,15 @@ def get_prop_known_interactions(
             data = known_interactions[tax_relation]
             results["all"] += 1
             results[data["interaction"]] += 1
-            n += 1
+            unique_results["all"].add(tax_relation)
+            unique_results[data["interaction"]].add(tax_relation)
     if count:
         return results[kind]
     else:
         if prop_of_network_edges:
             return results[kind] / len(all_tax_relations)
         else:
-            return results[kind] / len(known_interactions)
+            return len(unique_results[kind]) / len(known_interactions)
 
 
 def yield_tax_edges(
@@ -252,12 +253,8 @@ def yield_tax_edges(
         if head in taxonomy and tail in taxonomy:
             head_tax = taxonomy[head]
             tail_tax = taxonomy[tail]
-            if (
-                tax_in_OTU_table is None 
-                or (
-                    head_tax in tax_in_OTU_table 
-                    and tail_tax in tax_in_OTU_table
-                )
+            if tax_in_OTU_table is None or (
+                head_tax in tax_in_OTU_table and tail_tax in tax_in_OTU_table
             ):
                 if trim_to_genus:
                     if len(head_tax) == 8:
@@ -278,34 +275,35 @@ def get_prop_predicted_interactions(
     trim_to_genus: bool = False,
 ) -> float:
     if taxonomy is not None:
-        inferred_interactions = {
+        inferred_interactions = Counter(
             tuple(sorted([head, tail]))
             for head, tail in yield_tax_edges(graph, taxonomy, trim_to_genus)
-        }
-        interactions = {
+        )
+        interactions = Counter(
             tuple(sorted([head, tail]))
             for head, tail in yield_tax_edges(
                 predicted_interactions, taxonomy, trim_to_genus, taxons_in_otu_table
             )
-        }
+        )
     else:
-        inferred_interactions = {
+        inferred_interactions = Counter(
             tuple(sorted([head, tail])) for head, tail in graph.edges()
-        }
-        interactions = {
+        )
+        interactions = Counter(
             (head, tail)
             for head, tail in predicted_interactions
             if head in otu_ids and tail in otu_ids
-        }
+        )
+    common_interactions = inferred_interactions & interactions
     if count:
-        return len(inferred_interactions & interactions)
+        return sum(common_interactions.values())
     else:
         if prop_of_network_edges:
-            return len(inferred_interactions & interactions) / len(
-                inferred_interactions
+            return sum(common_interactions.values()) / sum(
+                inferred_interactions.values()
             )
         else:
-            return len(inferred_interactions & interactions) / len(interactions)
+            return sum(common_interactions.values()) / sum(interactions.values())
 
 
 def get_n_signs(graph: nx.Graph, sign: str) -> int:
