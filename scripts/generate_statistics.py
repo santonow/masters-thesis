@@ -234,7 +234,7 @@ def get_prop_known_interactions(
             unique_results["all"].add(tax_relation)
             unique_results[data["interaction"]].add(tax_relation)
     if count:
-        return results[kind]
+        return len(unique_results[kind])
     else:
         if prop_of_network_edges:
             return results[kind] / len(all_tax_relations)
@@ -246,21 +246,21 @@ def yield_tax_edges(
     graph: Union[nx.Graph, dict[tuple[str, str], dict[str, str]]],
     taxonomy: dict[str, Taxonomy],
     trim_to_genus: bool,
-    tax_in_OTU_table: Optional[set[str]] = None,
+    tax_in_OTU_table: Optional[set[Taxonomy]] = None,
 ) -> Iterator[Tuple[Taxonomy, Taxonomy]]:
     edge_iter = graph.edges() if isinstance(graph, nx.Graph) else iter(graph)
     for head, tail in edge_iter:
         if head in taxonomy and tail in taxonomy:
             head_tax = taxonomy[head]
             tail_tax = taxonomy[tail]
+            if trim_to_genus:
+                if len(head_tax) == 8:
+                    head_tax = head_tax[:-1]
+                if len(tail_tax) == 8:
+                    tail_tax = tail_tax[:-1]
             if tax_in_OTU_table is None or (
                 head_tax in tax_in_OTU_table and tail_tax in tax_in_OTU_table
             ):
-                if trim_to_genus:
-                    if len(head_tax) == 8:
-                        head_tax = head_tax[:-1]
-                    if len(tail_tax) == 8:
-                        tail_tax = tail_tax[:-1]
                 yield head_tax, tail_tax
 
 
