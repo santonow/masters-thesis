@@ -245,14 +245,20 @@ def yield_tax_edges(
     graph: Union[nx.Graph, dict[tuple[str, str], dict[str, str]]],
     taxonomy: dict[str, Taxonomy],
     trim_to_genus: bool,
-    otu_ids: Optional[set[str]] = None,
+    tax_in_OTU_table: Optional[set[str]] = None,
 ) -> Iterator[Tuple[Taxonomy, Taxonomy]]:
     edge_iter = graph.edges() if isinstance(graph, nx.Graph) else iter(graph)
     for head, tail in edge_iter:
         if head in taxonomy and tail in taxonomy:
-            if (otu_ids is None) or (head in otu_ids and tail in otu_ids):
-                head_tax = taxonomy[head]
-                tail_tax = taxonomy[tail]
+            head_tax = taxonomy[head]
+            tail_tax = taxonomy[tail]
+            if (
+                tax_in_OTU_table is None 
+                or (
+                    head_tax in tax_in_OTU_table 
+                    and tail_tax in tax_in_OTU_table
+                )
+            ):
                 if trim_to_genus:
                     if len(head_tax) == 8:
                         head_tax = head_tax[:-1]
@@ -428,7 +434,6 @@ def extend_metrics(
                     taxonomy=taxonomy,
                     count=True,
                     kind=kind,
-                    trim_to_genus=True,
                 ),
             )
             for kind in sorted(
@@ -475,6 +480,7 @@ def extend_metrics(
                     taxonomy=taxonomy,
                     count=True,
                     kind=kind,
+                    trim_to_genus=True,
                 ),
             )
             for kind in sorted(
