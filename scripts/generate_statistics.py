@@ -185,7 +185,9 @@ def read_experimental_interactions(
                 head_lineage in taxons_in_otu_table
                 and tail_lineage in taxons_in_otu_table
             ):
-                interactions[tuple(sorted([head_lineage, tail_lineage]))].append(interaction)
+                interactions[tuple(sorted([head_lineage, tail_lineage]))].append(
+                    interaction
+                )
     return interactions
 
 
@@ -221,7 +223,9 @@ def get_prop_known_interactions(
     n = 0
     results = Counter()
     unique_results = defaultdict(set)
-    all_known_relations = sum(len(interaction_types) for interaction_types in known_interactions.values())
+    all_known_relations = sum(
+        len(interaction_types) for interaction_types in known_interactions.values()
+    )
     for head_lineage, tail_lineage in yield_tax_edges(graph, taxonomy, trim_to_genus):
         tax_relation = tuple(sorted([head_lineage, tail_lineage]))
         n += 1
@@ -394,6 +398,11 @@ def extend_metrics(
     taxonomy,
     trophic_groups,
 ):
+    all_PIDA_interaction_types = set()
+    for interaction_types in known_interactions.values():
+        all_PIDA_interaction_types.update(interaction_types)
+    for interaction_types in known_interactions_genus.values():
+        all_PIDA_interaction_types.update(interaction_types)
     metrics = (
         [
             (
@@ -434,9 +443,7 @@ def extend_metrics(
                     kind=kind,
                 ),
             )
-            for kind in sorted(
-                {elem["interaction"] for elem in known_interactions.values()}
-            )
+            for kind in sorted(all_PIDA_interaction_types)
         ]
         + [
             (
@@ -481,9 +488,7 @@ def extend_metrics(
                     trim_to_genus=True,
                 ),
             )
-            for kind in sorted(
-                {elem["interaction"] for elem in known_interactions.values()}
-            )
+            for kind in sorted(all_PIDA_interaction_types)
         ]
         + [
             (

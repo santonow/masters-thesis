@@ -103,28 +103,16 @@ for record in df.to_dict(orient="records"):
     right_match_genus = match_lineage(lineage_right[:-1], lineages_genus)
 
     if left_match is not None and right_match is not None:
-        relations.add(
-            (
-                tuple(left_match),
-                tuple(right_match),
-                record["Interaction"]
-            )
-        )
+        relations.add((tuple(left_match), tuple(right_match), record["Interaction"]))
 
     if left_match_genus is not None and right_match_genus is not None:
         relations_genus_level.add(
-            (
-                tuple(left_match_genus),
-                tuple(right_match_genus),
-                record["Interaction"]
-            )
+            (tuple(left_match_genus), tuple(right_match_genus), record["Interaction"])
         )
 
 with open(snakemake.output[1], "w") as handle:
     writer = csv.writer(handle, delimiter="\t")
-    writer.writerow(
-        ["head", "tail", "interaction"]
-    )
+    writer.writerow(["head", "tail", "interaction"])
     for head, tail, interaction in relations:
         writer.writerow(
             [
@@ -136,9 +124,7 @@ with open(snakemake.output[1], "w") as handle:
 
 with open(snakemake.output[2], "w") as handle:
     writer = csv.writer(handle, delimiter="\t")
-    writer.writerow(
-        ["head", "tail", "interaction"]
-    )
+    writer.writerow(["head", "tail", "interaction"])
     for head, tail, interaction in relations_genus_level:
         writer.writerow(
             [
