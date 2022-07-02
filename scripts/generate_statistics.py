@@ -215,18 +215,18 @@ def read_taxonomy(tax_fpath: str) -> dict[str, tuple[str, ...]]:
 def get_prop_known_interactions(
     graph: nx.Graph,
     known_interactions,
-    taxonomy: dict[str, tuple[str, ...]],
+    taxonomy: dict[str, Taxonomy],
     count: bool = False,
     prop_of_network_edges: bool = False,
     kind="all",
     trim_to_genus: bool = False,
 ) -> float:
+    n = 0
     results = Counter()
     unique_results = defaultdict(set)
-    all_tax_relations = set()
     for head_lineage, tail_lineage in yield_tax_edges(graph, taxonomy, trim_to_genus):
         tax_relation = tuple(sorted([head_lineage, tail_lineage]))
-        all_tax_relations.add(tax_relation)
+        n += 1
         if tax_relation in known_interactions:
             data = known_interactions[tax_relation]
             results["all"] += 1
@@ -237,7 +237,7 @@ def get_prop_known_interactions(
         return len(unique_results[kind])
     else:
         if prop_of_network_edges:
-            return results[kind] / len(all_tax_relations)
+            return results[kind] / n
         else:
             return len(unique_results[kind]) / len(known_interactions)
 
