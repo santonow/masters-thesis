@@ -4,7 +4,7 @@ from collections import defaultdict, Counter
 from functools import partial
 from itertools import combinations, chain
 import sys
-from typing import Dict, Callable, Iterator, Union, Any, List, Optional, Tuple
+from typing import Dict, Callable, Iterator, Union, Any, List, Optional, Tuple, Set
 import csv
 from math import isnan
 
@@ -109,6 +109,18 @@ def prepare_pairwise_stats(
         )
         for method, graph in method_graphs.items()
     }
+    edges_genus = dict()
+    for method, graph in method_graphs.items():
+        c = Counter()
+        for head, tail in graph.edges():
+            head_taxonomy = taxonomy[head]
+            tail_taxonomy = taxonomy[tail]
+            if len(head_taxonomy) == 8:
+                head_taxonomy = head_taxonomy[:-1]
+            if len(tail_taxonomy) == 8:
+                tail_taxonomy = tail_taxonomy[:-1]
+            c[sorted([head_taxonomy, tail_taxonomy])] += 1
+        edges_genus[method] = c
 
     common_OTUs = {
         tuple(sorted([method1, method2])): len(edges_OTU[method1] & edges_OTU[method2])
@@ -120,12 +132,19 @@ def prepare_pairwise_stats(
         )
         for method1, method2 in combinations(method_graphs, 2)
     }
+    common_genus = {
+        tuple(sorted([method1, method2])): common_taxon_edges(
+            edges_genus[method1], edges_genus[method2]
+        )
+        for method1, method2 in combinations(method_graphs, 2)
+    }
 
     methods = sorted(method_graphs)
     handle.writerow([""] + methods, sheet_name="Method comparisons")
     for level, common_edges in [
         ("OTU level", common_OTUs),
         ("taxon level", common_taxons),
+        ("genus level", common_genus)
     ]:
         for method in methods:
             row = [f"{method} ({level})"]
@@ -168,8 +187,8 @@ def read_experimental_interactions(
     interactions_fpath: str,
     taxons_in_otu_table: set[Taxonomy],
     trim_to_genus: bool = False,
-) -> dict[Tuple[Taxonomy, Taxonomy], List[str]]:
-    interactions = defaultdict(list)
+) -> dict[Tuple[Taxonomy, Taxonomy], Set[str]]:
+    interactions = defaultdict(set)
     with open(interactions_fpath) as handle:
         reader = csv.reader(handle, delimiter="\t")
         next(reader)
@@ -185,7 +204,7 @@ def read_experimental_interactions(
                 head_lineage in taxons_in_otu_table
                 and tail_lineage in taxons_in_otu_table
             ):
-                interactions[tuple(sorted([head_lineage, tail_lineage]))].append(
+                interactions[tuple(sorted([head_lineage, tail_lineage]))].add(
                     interaction
                 )
     return interactions
@@ -213,7 +232,7 @@ def read_taxonomy(tax_fpath: str) -> dict[str, tuple[str, ...]]:
 
 def get_prop_known_interactions(
     graph: nx.Graph,
-    known_interactions: Dict[Tuple[Taxonomy, Taxonomy], List[str]],
+    known_interactions: Dict[Tuple[Taxonomy, Taxonomy], Set[str]],
     taxonomy: dict[str, Taxonomy],
     count: bool = False,
     prop_of_network_edges: bool = False,
@@ -232,7 +251,6 @@ def get_prop_known_interactions(
         if tax_relation in known_interactions:
             data = known_interactions[tax_relation]  # noqa
             results["all"] += 1
-            assert len(data) == len(set(data))
             for interaction_type in data:
                 unique_results["all"].add((tax_relation, interaction_type))
                 results[interaction_type] += 1
