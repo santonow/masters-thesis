@@ -168,12 +168,12 @@ def read_experimental_interactions(
     interactions_fpath: str,
     taxons_in_otu_table: set[Taxonomy],
     trim_to_genus: bool = False,
-) -> dict:
-    interactions = dict()
+) -> dict[Tuple[Taxonomy, Taxonomy], List[str]]:
+    interactions = defaultdict(list)
     with open(interactions_fpath) as handle:
         reader = csv.reader(handle, delimiter="\t")
         next(reader)
-        for head, tail, _, interaction, habitat in reader:
+        for head, tail, interaction in reader:
             head_lineage = tuple(json.loads(head))
             tail_lineage = tuple(json.loads(tail))
             if trim_to_genus:
@@ -185,10 +185,7 @@ def read_experimental_interactions(
                 head_lineage in taxons_in_otu_table
                 and tail_lineage in taxons_in_otu_table
             ):
-                interactions[tuple(sorted([head_lineage, tail_lineage]))] = {
-                    "interaction": interaction,
-                    "habitat": habitat,
-                }
+                interactions[tuple(sorted([head_lineage, tail_lineage]))].append(interaction)
     return interactions
 
 
@@ -214,7 +211,7 @@ def read_taxonomy(tax_fpath: str) -> dict[str, tuple[str, ...]]:
 
 def get_prop_known_interactions(
     graph: nx.Graph,
-    known_interactions,
+    known_interactions: Dict[Tuple[Taxonomy, Taxonomy], List[str]],
     taxonomy: dict[str, Taxonomy],
     count: bool = False,
     prop_of_network_edges: bool = False,
@@ -224,15 +221,18 @@ def get_prop_known_interactions(
     n = 0
     results = Counter()
     unique_results = defaultdict(set)
+    all_known_relations = sum(len(interaction_types) for interaction_types in known_interactions.values())
     for head_lineage, tail_lineage in yield_tax_edges(graph, taxonomy, trim_to_genus):
         tax_relation = tuple(sorted([head_lineage, tail_lineage]))
         n += 1
         if tax_relation in known_interactions:
-            data = known_interactions[tax_relation]
+            data = known_interactions[tax_relation]  # noqa
             results["all"] += 1
-            results[data["interaction"]] += 1
-            unique_results["all"].add(tax_relation)
-            unique_results[data["interaction"]].add(tax_relation)
+            assert len(data) == len(set(data))
+            for interaction_type in data:
+                unique_results["all"].add((tax_relation, interaction_type))
+                results[interaction_type] += 1
+                unique_results[interaction_type].add((tax_relation, interaction_type))
     if count:
         return len(unique_results[kind])
     else:
