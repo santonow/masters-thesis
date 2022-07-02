@@ -659,7 +659,10 @@ def write_interactions(
     handle: OpenPyXLWriter,
     taxonomy: Dict[str, Tuple[str, ...]],
     known_interactions,
+    known_interactions_genus,
     predicted_interactions,
+    predicted_interactions_tax,
+    predicted_interactions_genus,
     trophic_groups,
 ):
     handle.writerow(
@@ -669,10 +672,13 @@ def write_interactions(
             "weight",
             "sign",
             "in PIDA",
-            "PIDA habitat",
-            "PIDA interaction",
+            "in PIDA (genus level)",
+            "PIDA interactions",
+            "PIDA interactions (genus level)",
             "in Lima-Mendez",
             "Lima-Mendez sign",
+            "in Lima-Mendez (taxon level)",
+            "in Lima-Mendez (genus level)",
             "trophic group 1",
             "trophic group 2",
         ]
@@ -683,31 +689,49 @@ def write_interactions(
         head, tail = sorted([head, tail])
         head_taxonomy = taxonomy[head]
         tail_taxonomy = taxonomy[tail]
+        head_taxonomy_genus = head_taxonomy[:-1] if len(head_taxonomy) == 8 else head_taxonomy
+        tail_taxonomy_genus = tail_taxonomy[:-1] if len(tail_taxonomy) == 8 else tail_taxonomy
         key = tuple(sorted([head_taxonomy, tail_taxonomy]))
+        key_genus = tuple(sorted([head_taxonomy_genus, tail_taxonomy_genus]))
         if key in known_interactions:
             known = True
-            habitat = known_interactions[key]["habitat"]
-            interaction = known_interactions[key]["interaction"]
+            interaction = ", ".join(known_interactions[key])
         else:
             known = False
-            habitat = ""
             interaction = ""
+        if key_genus in known_interactions_genus:
+            known_genus = True
+            interaction_genus = ", ".join(known_interactions_genus[key_genus])
+        else:
+            known_genus = False
+            interaction_genus = ""
         if (head, tail) in predicted_interactions:
             predicted = True
             predicted_sign = predicted_interactions[(head, tail)]["sign"]
         else:
             predicted = False
             predicted_sign = ""
+        if key in predicted_interactions_tax:
+            predicted_tax = True
+        else:
+            predicted_tax = False
+        if key_genus in predicted_interactions_genus:
+            predicted_genus = True
+        else:
+            predicted_genus = False
         row = [
             head,
             tail,
             attrs["weight"],
             attrs["sign"],
             known,
-            habitat,
             interaction,
+            known_genus,
+            interaction_genus,
             predicted,
             predicted_sign,
+            predicted_tax,
+            predicted_genus,
             trophic_groups.get(head, ""),
             trophic_groups.get(tail, ""),
             *(
@@ -760,6 +784,17 @@ if __name__ == "__main__":
         known_inter_path_genus, taxons_in_otu_table_genus, True
     )
     predicted_interactions = read_predicted_interactions(pred_path)
+    predicted_interactions_tax = set()
+    predicted_interactions_genus = set()
+    for head, tail in predicted_interactions:
+        head_tax = taxonomy[head]
+        tail_tax = taxonomy[tail]
+        predicted_interactions_tax.add(tuple(sorted([head_tax, tail_tax])))
+        if len(head_tax) == 8:
+            head_tax = head_tax[:-1]
+        if len(tail_tax) == 8:
+            tail_tax = tail_tax[:-1]
+        predicted_interactions_genus.add(tuple(sorted([head_tax, tail_tax])))
     trophic_groups = read_trophic_groups(trophic_groups_path, taxonomy)
     extend_metrics(
         known_interactions,
@@ -800,5 +835,7 @@ if __name__ == "__main__":
                 taxonomy,
                 known_interactions,
                 predicted_interactions,
+                predicted_interactions_tax,
+                predicted_interactions_genus,
                 trophic_groups,
             )
