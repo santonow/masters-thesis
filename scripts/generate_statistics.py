@@ -704,6 +704,7 @@ if __name__ == "__main__":
         otu_table_fpath,
         tax_path,
         known_inter_path,
+        known_inter_path_genus,
         pred_path,
         trophic_groups_path,
         n_threads,
@@ -733,7 +734,7 @@ if __name__ == "__main__":
         known_inter_path, taxons_in_otu_table
     )
     known_interactions_genus = read_experimental_interactions(
-        known_inter_path, taxons_in_otu_table_genus, True
+        known_inter_path_genus, taxons_in_otu_table_genus, True
     )
     predicted_interactions = read_predicted_interactions(pred_path)
     trophic_groups = read_trophic_groups(trophic_groups_path, taxonomy)

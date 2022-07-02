@@ -79,6 +79,7 @@ with zipfile.ZipFile(snakemake.output[0]) as zfile:
 
 
 relations = nx.DiGraph()
+relations_genus_level = nx.DiGraph()
 for record in df.to_dict(orient="records"):
     lineage_left = [record[f"Taxonomic level {i}: org1"] for i in range(1, 4)] + [
         record["Genus org1"],
@@ -92,11 +93,22 @@ for record in df.to_dict(orient="records"):
         continue
     left_match = match_lineage(lineage_left, lineages)
     right_match = match_lineage(lineage_right, lineages)
+    left_match_genus = match_lineage(lineage_left[:-1], lineages)
+    right_match_genus = match_lineage(lineage_right[:-1], lineages)
 
     if left_match is not None and right_match is not None:
         relations.add_edge(
             tuple(left_match),
             tuple(right_match),
+            interaction=record["Interaction"],
+            ecological_interaction=record["Ecological interaction"],
+            habitat=record["Habitat"],
+        )
+
+    if left_match_genus is not None and right_match_genus is not None:
+        relations_genus_level.add_edge(
+            tuple(left_match_genus),
+            tuple(right_match_genus),
             interaction=record["Interaction"],
             ecological_interaction=record["Ecological interaction"],
             habitat=record["Habitat"],
@@ -108,6 +120,27 @@ with open(snakemake.output[1], "w") as handle:
         ["head", "tail", "interaction", "ecological_interaction", "habitat"]
     )
     for head, tail, attrs in relations.edges(data=True):
+        writer.writerow(
+            [
+                json.dumps(head),
+                json.dumps(tail),
+                *[
+                    attrs[field_name]
+                    for field_name in [
+                        "interaction",
+                        "ecological_interaction",
+                        "habitat",
+                    ]
+                ],
+            ]
+        )
+
+with open(snakemake.output[2], "w") as handle:
+    writer = csv.writer(handle, delimiter="\t")
+    writer.writerow(
+        ["head", "tail", "interaction", "ecological_interaction", "habitat"]
+    )
+    for head, tail, attrs in relations_genus_level.edges(data=True):
         writer.writerow(
             [
                 json.dumps(head),

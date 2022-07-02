@@ -58,6 +58,7 @@ class PathHandler:
         self.consensus_network_path = "data/consensus_network.edgelist"
         self.trophic_groups = "data/trophic_groups.xlsx"
         self.known_relations = "data/known_relations.tsv"
+        self.known_relations_genus = "data/known_relations_genus.tsv"
         self.lima_mendez_relations = "data/lima-mendez_relations.tsv"
         self.pr2_path = "data/blast/pr2.fasta"
         self.blast_results = "data/blast/results.out.gz"
@@ -234,6 +235,7 @@ rule get_known_relations:
     output:
         "data/pida_v1.08.zip",
         path_handler.known_relations,
+        path_handler.known_relations_genus
     conda:
         "envs/file_manipulation.yaml"
     benchmark:
@@ -398,6 +400,7 @@ rule generate_stats:
         path_handler.standarized_input,
         path_handler.tax_file,
         path_handler.known_relations,
+        path_handler.known_relations_genus,
         path_handler.lima_mendez_relations,
         path_handler.trophic_groups,
         *path_handler.standarized_graphs,
@@ -413,8 +416,8 @@ rule generate_stats:
     threads: 4
     shell:
         "python -m scripts.generate_statistics "
-        "{input[0]} {input[1]} {input[2]} {input[3]} {input[4]} {threads} {output[0]} " + " ".join(
-            "{" + f"input[{5 + i}]" + "}" for i in range(len(METHODS_EXTENSIONS) + 1)
+        "{input[0]} {input[1]} {input[2]} {input[3]} {input[4]} {input[5]} {threads} {output[0]} " + " ".join(
+            "{" + f"input[{6 + i}]" + "}" for i in range(len(METHODS_EXTENSIONS) + 1)
         ) + " >> {log}"
 
 
