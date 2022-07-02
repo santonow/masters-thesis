@@ -62,6 +62,7 @@ PIDA_URL = "https://github.com/ramalok/PIDA/archive/refs/tags/v1.08.zip"
 status = subprocess.run(["wget", PIDA_URL, "-O", snakemake.output[0]])
 
 lineages = dict()
+lineages_genus = dict()
 with open(snakemake.input[0], "r") as handle:
     reader = csv.reader(handle, delimiter="\t")
     next(reader)
@@ -69,6 +70,11 @@ with open(snakemake.input[0], "r") as handle:
         for i, elem in enumerate(lineage):
             if elem:
                 lineages[elem.lower()] = lineage[: i + 1]
+        if len(lineage) == 8:
+            lineage = lineage[:-1]
+        for i, elem in enumerate(lineage):
+            if elem:
+                lineages_genus[elem.lower()] = lineage[: i + 1]
 
 
 with zipfile.ZipFile(snakemake.output[0]) as zfile:
@@ -93,8 +99,8 @@ for record in df.to_dict(orient="records"):
         continue
     left_match = match_lineage(lineage_left, lineages)
     right_match = match_lineage(lineage_right, lineages)
-    left_match_genus = match_lineage(lineage_left[:-1], lineages)
-    right_match_genus = match_lineage(lineage_right[:-1], lineages)
+    left_match_genus = match_lineage(lineage_left[:-1], lineages_genus)
+    right_match_genus = match_lineage(lineage_right[:-1], lineages_genus)
 
     if left_match is not None and right_match is not None:
         relations.add_edge(
