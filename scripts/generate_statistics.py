@@ -147,7 +147,7 @@ def write_hub_stats(
 ):
     for level, rows in hub_stats.items():
         sheet_name = f"Sorted by degree (max {RANKS[level - 1]} level)"
-        trimmed_ranks = RANKS[: level - 1]
+        trimmed_ranks = RANKS[: level]
         header = list(trimmed_ranks)
         for name in names:
             header.append(f"degree ({name})")
