@@ -925,6 +925,7 @@ if __name__ == "__main__":
                 handle,
                 taxonomy,
                 known_interactions,
+                known_interactions_genus,
                 predicted_interactions,
                 predicted_interactions_tax,
                 predicted_interactions_genus,
