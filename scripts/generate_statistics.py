@@ -119,7 +119,7 @@ def prepare_pairwise_stats(
                 head_taxonomy = head_taxonomy[:-1]
             if len(tail_taxonomy) == 8:
                 tail_taxonomy = tail_taxonomy[:-1]
-            c[sorted([head_taxonomy, tail_taxonomy])] += 1
+            c[tuple(sorted([head_taxonomy, tail_taxonomy]))] += 1
         edges_genus[method] = c
 
     common_OTUs = {
