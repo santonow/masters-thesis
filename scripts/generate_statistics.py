@@ -30,6 +30,14 @@ RANKS = [
 Taxonomy = tuple[str, ...]
 
 
+def dict_zip(*dicts: dict, default=None) -> Tuple[Any, ...]:
+    keys = set()
+    for d in dicts:
+        keys.update(d)
+    for key in keys:
+        yield tuple([key] + [d.get(key, default) for d in dicts])
+
+
 class OpenPyXLWriter:
     def __init__(self, fname: str, sheet_name=None):
         self.fname = fname
@@ -85,6 +93,73 @@ class OpenPyXLWriter:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.save()
+
+
+def prepare_hub_taxons_stats(
+    graphs: List[nx.Graph],
+    names: List[str],
+    taxonomy: Dict[str, Taxonomy],
+    levels: Tuple[int, ...] = (4, 5, 6, 7),
+) -> Dict[int, List[List]]:
+    results = dict()
+    for level in levels:
+        new_taxonomy = {otu_id: lineage[:level] for otu_id, lineage in taxonomy.items()}
+
+        def get_tax_ranking(graph):
+            tax2ranks = dict()
+            tax2degrees = Counter()
+            for node, degree in graph.degree():
+                if node == "leftover_vector":
+                    continue
+                tax2degrees[new_taxonomy[node]] += degree
+            for i, (tax, degree) in enumerate(
+                sorted(tax2degrees.items(), reverse=True, key=lambda x: x[1])
+            ):
+                tax2ranks[tax] = {"degree": degree, "rank": i + 1}
+            return tax2ranks
+
+        tax2degrees = defaultdict(lambda: defaultdict(Counter))
+        for tax, *degrees in dict_zip(*[get_tax_ranking(graph) for graph in graphs]):
+            for graph_name, data in zip(names, degrees):
+                if data is not None:
+                    tax2degrees[tax][graph_name] += data
+
+        rows = []
+        for node, vals in tax2degrees.items():
+            #     if not set(vals) == set()
+            row = [node]
+            degrees = [val["degree"] for val in vals.values()]
+            ranks = [val["rank"] for val in vals.values()]
+            for graph_name in names:
+                row.append(vals.get(graph_name, dict()).get("degree"))
+                row.append(vals.get(graph_name, dict()).get("rank"))
+            row.append(np.mean(degrees))
+            row.append(np.mean(ranks))
+            rows.append(row)
+
+        results[level] = sorted(rows, key=lambda x: x[-1])
+
+    return results
+
+
+def write_hub_stats(
+    handle: OpenPyXLWriter, names: List[str], hub_stats: Dict[int, List[List]]
+):
+    for level, rows in hub_stats.items():
+        sheet_name = f"Sorted by degree (max {RANKS[level - 1]} level)"
+        trimmed_ranks = RANKS[: level - 1]
+        header = list(trimmed_ranks)
+        for name in names:
+            header.append(f"degree ({name})")
+            header.append(f"rank ({name})")
+        header.append("mean degree")
+        header.append("mean rank")
+        handle.writerow(header, sheet_name=sheet_name)
+        for row in sorted(rows, key=lambda x: x[-1]):
+            tax, *vals = row
+            tax = list(tax) + ["" for _ in range(len(trimmed_ranks) - len(tax))]
+            assert len(tax) == len(trimmed_ranks)
+            handle.writerow(list(tax) + vals, sheet_name=sheet_name)
 
 
 def prepare_pairwise_stats(
@@ -144,7 +219,7 @@ def prepare_pairwise_stats(
     for level, common_edges in [
         ("OTU level", common_OTUs),
         ("taxon level", common_taxons),
-        ("genus level", common_genus)
+        ("genus level", common_genus),
     ]:
         for method in methods:
             row = [f"{method} ({level})"]
@@ -689,8 +764,12 @@ def write_interactions(
         head, tail = sorted([head, tail])
         head_taxonomy = taxonomy[head]
         tail_taxonomy = taxonomy[tail]
-        head_taxonomy_genus = head_taxonomy[:-1] if len(head_taxonomy) == 8 else head_taxonomy
-        tail_taxonomy_genus = tail_taxonomy[:-1] if len(tail_taxonomy) == 8 else tail_taxonomy
+        head_taxonomy_genus = (
+            head_taxonomy[:-1] if len(head_taxonomy) == 8 else head_taxonomy
+        )
+        tail_taxonomy_genus = (
+            tail_taxonomy[:-1] if len(tail_taxonomy) == 8 else tail_taxonomy
+        )
         key = tuple(sorted([head_taxonomy, tail_taxonomy]))
         key_genus = tuple(sorted([head_taxonomy_genus, tail_taxonomy_genus]))
         if key in known_interactions:
@@ -819,6 +898,18 @@ if __name__ == "__main__":
         graphs_by_method[network_name] = graph
         stats_by_method[network_name] = stats
 
+    graphs = []
+    names = []
+    for graph_name, graph in graphs_by_method.items():
+        graphs.append(graph)
+        names.append(graph_name)
+    lima_mendez_graph = nx.Graph()
+    for head, tail in predicted_interactions.items():
+        lima_mendez_graph.add_edge(head, tail)
+    graphs.append(lima_mendez_graph)
+    names.append('Lima-Mendez TARA interactome')
+    hub_stats = prepare_hub_taxons_stats(graphs, names, taxonomy)
+
     with OpenPyXLWriter(output_fpath, "Network statistics") as handle:
         handle.writerow(["network"] + HEADER)
         for network_name, stats in stats_by_method.items():
@@ -839,3 +930,4 @@ if __name__ == "__main__":
                 predicted_interactions_genus,
                 trophic_groups,
             )
+        write_hub_stats(handle, names, hub_stats)
