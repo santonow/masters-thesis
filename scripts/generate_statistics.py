@@ -904,7 +904,7 @@ if __name__ == "__main__":
         graphs.append(graph)
         names.append(graph_name)
     lima_mendez_graph = nx.Graph()
-    for head, tail in predicted_interactions.items():
+    for head, tail in predicted_interactions:
         lima_mendez_graph.add_edge(head, tail)
     graphs.append(lima_mendez_graph)
     names.append('Lima-Mendez TARA interactome')
