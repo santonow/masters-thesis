@@ -336,7 +336,7 @@ def get_prop_known_interactions(
         if prop_of_network_edges:
             return results[kind] / n
         else:
-            return len(unique_results[kind]) / len(known_interactions)
+            return len(unique_results[kind]) / all_known_relations
 
 
 def yield_tax_edges(
