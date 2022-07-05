@@ -146,7 +146,7 @@ def write_hub_stats(
     handle: OpenPyXLWriter, names: List[str], hub_stats: Dict[int, List[List]]
 ):
     for level, rows in hub_stats.items():
-        sheet_name = f"Sorted by degree (max {RANKS[level - 1]} level)"
+        sheet_name = f"{RANKS[level - 1]} sorted by degree"
         trimmed_ranks = RANKS[: level]
         header = list(trimmed_ranks)
         for name in names:
