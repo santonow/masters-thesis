@@ -897,17 +897,16 @@ if __name__ == "__main__":
             network_name = method_name + " network"
         graphs_by_method[network_name] = graph
         stats_by_method[network_name] = stats
-
+    lima_mendez_graph = nx.Graph()
+    for head, tail in predicted_interactions:
+        lima_mendez_graph.add_edge(head, tail)
+    stats_by_method['Lima-Mendez TARA interactome'] = prepare_stats(lima_mendez_graph)
+    graphs_by_method['Lima-Mendez TARA interactome'] = lima_mendez_graph
     graphs = []
     names = []
     for graph_name, graph in graphs_by_method.items():
         graphs.append(graph)
         names.append(graph_name)
-    lima_mendez_graph = nx.Graph()
-    for head, tail in predicted_interactions:
-        lima_mendez_graph.add_edge(head, tail)
-    graphs.append(lima_mendez_graph)
-    names.append('Lima-Mendez TARA interactome')
     hub_stats = prepare_hub_taxons_stats(graphs, names, taxonomy)
 
     with OpenPyXLWriter(output_fpath, "Network statistics") as handle:
