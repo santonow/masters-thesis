@@ -34,16 +34,12 @@ def group_to_X(s):
         return "_".join(splitted[:-2]) + "_" + "X" * len(splitted[-1])
 
 
-def match_lineage(lineage, lineages, genus=False):
+def match_lineage(lineage, lineages):
     options = []
     if str(lineage[-1]) != "nan":
         options.append("_".join([lineage[-2], lineage[-1]]))
-        if genus:
-            options.append(lineage[-1])
         if options[0] in manual_mapping:
             options.append(manual_mapping[options[0]])
-        if genus and options[1] in manual_mapping:
-            options.append(manual_mapping[options[1]])
         if lineage[-2] in manual_mapping:
             options.append("_".join([manual_mapping[lineage[-2]], lineage[-1]]))
         species_group_t_X = group_to_X(lineage[-1])
@@ -102,8 +98,8 @@ for record in df.to_dict(orient="records"):
         continue
     left_match = match_lineage(lineage_left, lineages)
     right_match = match_lineage(lineage_right, lineages)
-    left_match_genus = match_lineage(lineage_left[:-1], lineages_genus, genus=True)
-    right_match_genus = match_lineage(lineage_right[:-1], lineages_genus, genus=True)
+    left_match_genus = left_match[:-1] if left_match is not None and len(left_match) == 8 else left_match
+    right_match_genus = right_match[:-1] if right_match is not None and len(right_match) == 8 else right_match
 
     if left_match is not None and right_match is not None:
         relations.add((tuple(left_match), tuple(right_match), record["Interaction"]))
