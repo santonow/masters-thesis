@@ -147,7 +147,7 @@ def write_hub_stats(
 ):
     for level, rows in hub_stats.items():
         sheet_name = f"{RANKS[level - 1]} sorted by degree"
-        trimmed_ranks = RANKS[: level]
+        trimmed_ranks = RANKS[:level]
         header = list(trimmed_ranks)
         for name in names:
             header.append(f"degree ({name})")
@@ -290,8 +290,8 @@ def read_predicted_interactions(interactions_fpath: str) -> dict[str, dict[str, 
     with open(interactions_fpath) as handle:
         reader = csv.reader(handle, delimiter="\t")
         next(reader)
-        for head, tail, _, _, sign in reader:
-            interactions[tuple(sorted([head, tail]))] = {"sign": sign}
+        for head, tail, _, weight, sign in reader:
+            interactions[tuple(sorted([head, tail]))] = {"sign": sign, "weight": weight}
     return interactions
 
 
@@ -900,8 +900,8 @@ if __name__ == "__main__":
     lima_mendez_graph = nx.Graph()
     for (head, tail), attrs in predicted_interactions.items():
         lima_mendez_graph.add_edge(head, tail, **attrs)
-    stats_by_method['Lima-Mendez TARA interactome'] = prepare_stats(lima_mendez_graph)
-    graphs_by_method['Lima-Mendez TARA interactome'] = lima_mendez_graph
+    stats_by_method["Lima-Mendez TARA interactome"] = prepare_stats(lima_mendez_graph)
+    graphs_by_method["Lima-Mendez TARA interactome"] = lima_mendez_graph
     graphs = []
     names = []
     for graph_name, graph in graphs_by_method.items():
