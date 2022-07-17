@@ -99,8 +99,12 @@ for record in df.to_dict(orient="records"):
         continue
     left_match = match_lineage(lineage_left, lineages)
     right_match = match_lineage(lineage_right, lineages)
-    left_match_genus = match_lineage(lineage_left[:-1], lineages_genus)
-    right_match_genus = match_lineage(lineage_right[:-1], lineages_genus)
+    left_match_genus = match_lineage(
+        lineage_left[:-1] if len(lineage_left) == 8 else lineage_left, lineages_genus
+    )
+    right_match_genus = match_lineage(
+        lineage_right[:-1] if len(lineage_right) == 8 else lineage_right, lineages_genus
+    )
 
     if left_match is not None and right_match is not None:
         relations.add((tuple(left_match), tuple(right_match), record["Interaction"]))
