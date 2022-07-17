@@ -898,7 +898,7 @@ if __name__ == "__main__":
         graphs_by_method[network_name] = graph
         stats_by_method[network_name] = stats
     lima_mendez_graph = nx.Graph()
-    for (head, tail), attrs in predicted_interactions:
+    for (head, tail), attrs in predicted_interactions.items():
         lima_mendez_graph.add_edge(head, tail, **attrs)
     stats_by_method['Lima-Mendez TARA interactome'] = prepare_stats(lima_mendez_graph)
     graphs_by_method['Lima-Mendez TARA interactome'] = lima_mendez_graph
