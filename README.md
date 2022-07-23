@@ -61,4 +61,9 @@ In the `visualization` directory there will be a new file `data.json`, which is 
 
 ### Visualization
 
-Assuming you installed node as in the [Installation](#installation) section, go to `visualization` directory and run `npm start`. The visualization will be available at `localhost:8989`. You can customize the port by changing it in the `ws --spa index.html --port 8989` command in the `package.json` file.
+Assuming you installed node as in the [Installation](#installation) section, go to `visualization` directory and run `npm start`. 
+The visualization will be available at `localhost:8989`. 
+You can customize the port by changing it in the `ws --spa index.html --port 8989` command in the `package.json` file.
+
+In the `visualization` directory there is already a sample `data.json` file, so you can see
+the visualization without running the whole workflow.
