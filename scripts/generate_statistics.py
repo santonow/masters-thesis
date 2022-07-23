@@ -39,7 +39,7 @@ def dict_zip(*dicts: dict, default=None) -> Tuple[Any, ...]:
 
 
 class OpenPyXLWriter:
-    def __init__(self, fname: str, sheet_name=None):
+    def __init__(self, fname: str, sheet_name: Optional[str] = None):
         self.fname = fname
         self.wb = openpyxl.Workbook()
         self.ws = self.wb.active
