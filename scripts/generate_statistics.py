@@ -173,6 +173,12 @@ def prepare_pairwise_stats(
             common += min([c1[k], c2[k]])
         return common
 
+    def all_taxon_edges(c1: Counter, c2: Counter) -> int:
+        _all = 0
+        for k in set(c1) | set(c2):
+            _all += max([c1[k], c2[k]])
+        return _all
+
     edges_OTU = {
         method: set(tuple(sorted([head, tail])) for head, tail in graph.edges())
         for method, graph in method_graphs.items()
@@ -201,16 +207,40 @@ def prepare_pairwise_stats(
         tuple(sorted([method1, method2])): len(edges_OTU[method1] & edges_OTU[method2])
         for method1, method2 in combinations(method_graphs, 2)
     }
+
     common_taxons = {
         tuple(sorted([method1, method2])): common_taxon_edges(
             edges_taxon[method1], edges_taxon[method2]
         )
         for method1, method2 in combinations(method_graphs, 2)
     }
+
     common_genus = {
         tuple(sorted([method1, method2])): common_taxon_edges(
             edges_genus[method1], edges_genus[method2]
         )
+        for method1, method2 in combinations(method_graphs, 2)
+    }
+
+    jaccard_OTUs = {
+        tuple(sorted([method1, method2])): common_OTUs[
+            tuple(sorted([method1, method2]))
+        ]
+        / len(edges_OTU[method1] | edges_OTU[method2])
+        for method1, method2 in combinations(method_graphs, 2)
+    }
+    jaccard_taxa = {
+        tuple(sorted([method1, method2])): common_taxons[
+            tuple(sorted([method1, method2]))
+        ]
+        / all_taxon_edges(edges_taxon[method1], edges_taxon[method2])
+        for method1, method2 in combinations(method_graphs, 2)
+    }
+    jaccard_genus = {
+        tuple(sorted([method1, method2])): common_genus[
+            tuple(sorted([method1, method2]))
+        ]
+        / all_taxon_edges(edges_genus[method1], edges_genus[method2])
         for method1, method2 in combinations(method_graphs, 2)
     }
 
@@ -220,6 +250,9 @@ def prepare_pairwise_stats(
         ("OTU level", common_OTUs),
         ("taxon level", common_taxons),
         ("genus level", common_genus),
+        ("OTU level (Jaccard index)", jaccard_OTUs),
+        ("taxon level (Jaccard index)", jaccard_taxa),
+        ("genus level (Jaccard index)", jaccard_genus)
     ]:
         for method in methods:
             row = [f"{method} ({level})"]
