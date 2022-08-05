@@ -56,6 +56,7 @@ Run `snakemake --use-conda -c n all`, where `n` is the number of cores you want 
 The results for each method are in the `data/<rule-name>_results` directories. There will be raw results that come out of each method as well as standarized results in a `.tsv` format, with top `100000` most strong associations from each network.
 
 An Excel spreadsheet is also produced in the `data` directory, which has basic statistics for each network, a comparison between the networks and a list of edges for each network.
+A sample Excel spreadsheet already resides in the `data` directory.
 
 In the `visualization` directory there will be a new file `data.json`, which is an input to the visualization.
 
